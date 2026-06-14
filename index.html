@@ -8,6 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/dist/tabler-icons.min.css" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Atlas">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   :root{--ac:#FF5C1A;--card:#16161A;--card2:#1F1F24;--line:rgba(255,255,255,.06);--tx:#F4F4F5;--mut:#8B8B92;--ok:#5fd08a;--bad:#FF6B6B;}
@@ -549,6 +556,10 @@
   if(TOKEN_){ showSplash("Connecting to your home…"); scheduleReconnect(); } // connect once, auto-reconnect forever after
   else { showConnect(); }
 })();
+</script>
+<script>
+  // Register the network-first service worker (enables installable PWA + offline fallback)
+  if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
 </script>
 </body>
 </html>
