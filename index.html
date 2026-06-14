@@ -2,167 +2,451 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0a0f">
-<meta name="mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
 <title>Atlas</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont/dist/tabler-icons.min.css" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#0a0a0f;--surface:#151520;--card:#1c1c2e;--card-hover:#24243a;--accent:#6c63ff;--accent-glow:rgba(108,99,255,.25);--green:#34d399;--orange:#fb923c;--red:#f87171;--blue:#60a5fa;--cyan:#22d3ee;--text:#e8e8f0;--text-dim:#8888a0;--text-muted:#555570;--radius:16px;--radius-sm:12px;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px)}
-html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text)}
-.app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
-.header{padding:20px 24px 12px;display:flex;align-items:center;justify-content:space-between}
-.header h1{font-size:28px;font-weight:700;letter-spacing:-0.5px}
-.header .status{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--green)}
-.header .status .dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 16px 100px;-webkit-overflow-scrolling:touch}
-.content::-webkit-scrollbar{display:none}
-.section{margin-bottom:24px}
-.section-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 4px}
-.section-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.section-title{font-size:16px;font-weight:600}
-.section-subtitle{font-size:12px;color:var(--text-dim)}
-.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.card-grid.single{grid-template-columns:1fr}
-.card{background:var(--card);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;transition:all .15s;cursor:pointer;border:1px solid transparent;min-height:88px;display:flex;flex-direction:column;justify-content:space-between}
-.card:active{transform:scale(.97);background:var(--card-hover)}
-.card.active{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
-.card.hero{grid-column:1/-1;min-height:72px;flex-direction:row;align-items:center;gap:16px;padding:18px 20px}
-.card-icon{font-size:24px;margin-bottom:8px}
-.card-label{font-size:14px;font-weight:500}
-.card-value{font-size:12px;color:var(--text-dim);margin-top:4px}
-.card-status{position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%}
-.card.hero .card-icon{font-size:28px;margin-bottom:0}
-.card.hero .card-info{flex:1}
-.card.hero .card-label{font-size:16px}
-.toggle{width:44px;height:26px;border-radius:13px;background:#333;position:relative;transition:background .2s;flex-shrink:0}
-.toggle.on{background:var(--accent)}
-.toggle::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#fff;top:3px;left:3px;transition:transform .2s}
-.toggle.on::after{transform:translateX(18px)}
-.temp-control{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:8px}
-.temp-btn{width:36px;height:36px;border-radius:50%;border:1px solid #333;background:transparent;color:var(--text);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.temp-btn:active{background:var(--accent);border-color:var(--accent)}
-.temp-display{font-size:32px;font-weight:700;min-width:70px;text-align:center}
-.temp-display span{font-size:16px;color:var(--text-dim);font-weight:400}
-.camera-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.camera-card{background:var(--card);border-radius:var(--radius);overflow:hidden;position:relative;aspect-ratio:16/10}
-.camera-feed{width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);display:flex;align-items:center;justify-content:center;position:relative}
-.camera-feed::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,.02) 2px,rgba(255,255,255,.02) 4px)}
-.camera-feed-icon{font-size:28px;opacity:.5}
-.camera-label{position:absolute;bottom:0;left:0;right:0;padding:8px 10px;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:11px;font-weight:500;display:flex;justify-content:space-between;align-items:center}
-.camera-live{color:var(--red);font-size:10px;display:flex;align-items:center;gap:4px}
-.camera-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--red);animation:pulse 1.5s infinite}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(15,15,22,.95);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-around;padding:8px 0 calc(8px + var(--safe-bottom));z-index:100}
-.nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 16px;cursor:pointer;color:var(--text-muted);transition:color .15s;font-size:20px}
-.nav-item span{font-size:10px;font-weight:500}
-.nav-item.active{color:var(--accent)}
-.nav-item:active{transform:scale(.9)}
-.page{display:none}.page.active{display:block}
-.quick-actions{display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding:0 4px}
-.quick-actions::-webkit-scrollbar{display:none}
-.quick-action{flex-shrink:0;padding:10px 18px;border-radius:24px;background:var(--card);border:1px solid #252540;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
-.quick-action:active,.quick-action.active{background:var(--accent);border-color:var(--accent)}
-.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--card);border:1px solid var(--accent);border-radius:var(--radius-sm);padding:12px 24px;font-size:14px;font-weight:500;z-index:200;transition:transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.scene-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.scene-card{background:var(--card);border-radius:var(--radius-sm);padding:14px 12px;text-align:center;cursor:pointer;transition:all .15s;border:1px solid transparent}
-.scene-card:active{transform:scale(.95)}
-.scene-card.active{border-color:var(--accent);background:var(--card-hover)}
-.scene-card .scene-icon{font-size:28px;margin-bottom:8px}
-.scene-card .scene-name{font-size:12px;font-weight:500}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  :root{--ac:#FF5C1A;--card:#16161A;--card2:#1F1F24;--line:rgba(255,255,255,.06);--tx:#F4F4F5;--mut:#8B8B92;--ok:#5fd08a;--bad:#FF6B6B;}
+  html,body{height:100%;}
+  body{background:#000;font-family:'Inter',system-ui,sans-serif;color:var(--tx);display:flex;justify-content:center;overflow:hidden;}
+  .device{width:100%;max-width:412px;height:100dvh;background:#0B0B0D;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+  .hide{display:none!important;}
+  button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit;}
+  .scrollarea{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:6px 16px 24px;scrollbar-width:none;}
+  .scrollarea::-webkit-scrollbar{display:none;}
+  /* connect gate */
+  #connect{flex:1;display:flex;flex-direction:column;justify-content:center;padding:30px 26px;gap:14px;}
+  #connect .logo{display:flex;align-items:center;gap:11px;font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px;}
+  #connect p{font-size:13.5px;color:var(--mut);line-height:1.6;}
+  #connect label{font-size:12px;color:var(--mut);font-weight:500;margin:10px 0 6px;display:block;}
+  #connect input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px;color:var(--tx);font-size:15px;font-family:inherit;}
+  #connect input:focus{outline:none;border-color:var(--ac);}
+  #connect .go{background:var(--ac);color:#fff;border-radius:13px;padding:15px;font-size:15px;font-weight:600;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;}
+  #connect .err{color:var(--bad);font-size:13px;line-height:1.5;background:rgba(255,107,107,.08);border:1px solid rgba(255,107,107,.2);border-radius:12px;padding:12px;}
+  /* header */
+  .hdr{display:flex;align-items:center;gap:10px;padding:16px 16px 10px;flex:0 0 auto;}
+  .hdr .mark{width:26px;height:26px;}
+  .hdr .ti-name{font-size:19px;font-weight:700;letter-spacing:-.3px;}
+  .hdr .sec{font-size:11.5px;color:var(--mut);}
+  .hdr .right{margin-left:auto;display:flex;align-items:center;gap:9px;}
+  .conn-dot{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mut);background:var(--card);border:1px solid var(--line);padding:6px 11px;border-radius:20px;}
+  .conn-dot .d{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 7px var(--ok);}
+  .conn-dot.off .d{background:var(--bad);box-shadow:0 0 7px var(--bad);}
+  .iconbtn{width:38px;height:38px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--mut);}
+  /* panels */
+  .panel{display:none;}.panel.on{display:block;}
+  .sub{font-size:13px;color:var(--mut);font-weight:600;margin:20px 2px 10px;letter-spacing:.2px;}
+  .sub:first-child{margin-top:8px;}
+  .card{background:linear-gradient(160deg,#1a1a1f,#141417);border:1px solid var(--line);border-radius:20px;padding:15px;}
+  .hero{position:relative;overflow:hidden;border-radius:22px;padding:20px;margin-top:8px;background:linear-gradient(135deg,#FF6A2C,#E8430A);color:#fff;}
+  .hero:active{transform:scale(.99);}
+  .hero .t{font-size:21px;font-weight:700;letter-spacing:-.3px;}
+  .hero .s{font-size:13px;opacity:.85;margin-top:4px;max-width:74%;line-height:1.45;}
+  .hero .ic{position:absolute;right:-6px;bottom:-10px;font-size:96px;opacity:.18;}
+  .hero .go{margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);padding:11px 18px;border-radius:30px;font-size:14px;font-weight:600;}
+  .hero.busy{pointer-events:none;opacity:.85;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+  .dev{background:linear-gradient(160deg,#1a1a1f,#141417);border:1px solid var(--line);border-radius:18px;padding:14px;}
+  .dev .scr{height:48px;border-radius:11px;background:radial-gradient(circle at 50% 40%,#161a26,#0c0f18);display:flex;align-items:center;justify-content:center;color:#3a4a66;font-size:20px;margin-bottom:11px;}
+  .dev.on .scr{background:radial-gradient(circle at 50% 40%,#2a3a5e,#10182e);color:#86a0d8;}
+  .dev .b{display:flex;align-items:center;}
+  .dev .n{font-size:14px;font-weight:500;}.dev .st{font-size:11px;color:var(--mut);}
+  .dev .tg{margin-left:auto;}
+  .row{display:flex;align-items:center;gap:12px;padding:13px 2px;}
+  .row+.row{border-top:1px solid var(--line);}
+  .ic{width:42px;height:42px;border-radius:12px;background:linear-gradient(160deg,#26262c,#18181c);display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto;}
+  .gw{flex:1;min-width:0;}
+  .nm{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .st{font-size:12px;color:var(--mut);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tg{width:50px;height:29px;border-radius:20px;background:#2A2A2E;position:relative;flex:0 0 auto;transition:.18s;}
+  .tg::after{content:"";position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;background:#fff;transition:.18s;}
+  .tg.on{background:var(--ac);}.tg.on::after{left:24px;}
+  .tg.warm.on{background:#E0A12E;}
+  .vol{height:6px;border-radius:6px;background:#2a2a30;position:relative;margin-top:10px;}
+  .vol input{position:absolute;inset:-8px 0;width:100%;height:24px;opacity:0;margin:0;}
+  .vol .f{position:absolute;left:0;top:0;height:6px;border-radius:6px;background:var(--ac);pointer-events:none;}
+  .vol .f.warm{background:#E0A12E;}
+  .vol .f::after{content:"";position:absolute;right:-5px;top:-4px;width:14px;height:14px;border-radius:50%;background:#fff;}
+  .climate{padding:16px;}
+  .climate .top{display:flex;align-items:center;gap:11px;margin-bottom:6px;}
+  .climate .name{font-size:16px;font-weight:600;}
+  .climate .stt{font-size:12px;color:var(--mut);}
+  .therm{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+  .therm .cur{font-size:12px;color:var(--mut);}
+  .therm .big{font-size:40px;font-weight:800;letter-spacing:-1.5px;line-height:1;}
+  .stepbtn{width:48px;height:48px;border-radius:50%;background:var(--card2);border:1px solid var(--line);font-size:22px;display:flex;align-items:center;justify-content:center;color:#fff;}
+  .modes{display:flex;gap:9px;margin-top:14px;}
+  .mode{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--card2);border-radius:12px;padding:10px 0;font-size:12.5px;color:var(--mut);}
+  .mode.on{background:#26201b;color:#FFB98C;}.mode.on i{color:var(--ac);}
+  .cams{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:8px;}
+  .cam{border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0e0f13;position:relative;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
+  .cam img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cam .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#3a3a40;font-size:24px;}
+  .cam .ph span{font-size:10px;color:var(--mut);}
+  .cam .lv{position:absolute;top:8px;left:9px;font-size:9px;font-weight:600;color:#FF8585;display:flex;align-items:center;gap:4px;letter-spacing:.5px;z-index:2;}
+  .cam .lv .d{width:5px;height:5px;border-radius:50%;background:#FF5A5A;box-shadow:0 0 6px #FF5A5A;}
+  .cam .cn{position:absolute;bottom:7px;left:9px;font-size:11px;color:#fff;z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+  .empty{text-align:center;color:var(--mut);font-size:13px;padding:40px 10px;}
+  .allbtn{display:flex;width:100%;margin-top:13px;background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:14px;padding:13px;font-size:14px;font-weight:500;align-items:center;justify-content:center;gap:8px;}
+  /* nav */
+  .nav{flex:0 0 auto;display:flex;gap:4px;padding:9px 12px calc(14px + env(safe-area-inset-bottom));background:#0B0B0D;border-top:1px solid var(--line);}
+  .nav button{flex:1;border-radius:14px;padding:8px 0 6px;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--mut);}
+  .nav button i{font-size:22px;}
+  .nav button span{font-size:10px;font-weight:500;}
+  .nav button.on{color:var(--ac);}
+  .nav button.on i{background:#26201b;width:46px;height:30px;border-radius:14px;display:flex;align-items:center;justify-content:center;}
+  /* toast */
+  #toast{position:absolute;left:16px;right:16px;bottom:84px;display:flex;flex-direction:column;gap:8px;z-index:50;pointer-events:none;}
+  .tst{background:#222228;border:1px solid var(--line);border-radius:13px;padding:12px 14px;font-size:13px;display:flex;align-items:center;gap:9px;box-shadow:0 12px 30px -10px rgba(0,0,0,.7);animation:tin .25s ease;}
+  .tst.ok{border-color:rgba(95,208,138,.3);}.tst.ok i{color:var(--ok);}
+  .tst.bad{border-color:rgba(255,107,107,.3);}.tst.bad i{color:var(--bad);}
+  .tst i{font-size:17px;}
+  @keyframes tin{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .spin{animation:sp 1s linear infinite;}@keyframes sp{to{transform:rotate(360deg)}}
+  /* connecting / reconnecting splash */
+  #splash{position:absolute;inset:0;background:#0B0B0D;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;z-index:40;}
+  #splash .ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:var(--ac);animation:sp 1s linear infinite;}
+  #splash .m{font-size:13.5px;color:var(--mut);max-width:75%;text-align:center;line-height:1.5;}
+  #splash .esc{font-size:12px;color:var(--ac);margin-top:2px;text-decoration:underline;}
 </style>
 </head>
 <body>
-<div class="app">
-<div class="header"><h1>Atlas</h1><div class="status"><div class="dot"></div>Connected</div></div>
-<div class="content">
-<div class="page active" id="page-home">
-<div class="quick-actions">
-<div class="quick-action" onclick="quickAction('goodnight')">🌙 Good Night</div>
-<div class="quick-action" onclick="quickAction('movie')">🎬 Movie Time</div>
-<div class="quick-action" onclick="quickAction('workout')">💪 Workout</div>
-<div class="quick-action" onclick="quickAction('away')">🔒 Away</div>
+<div class="device">
+
+  <div id="connect">
+    <div class="logo"><svg class="mark" width="28" height="28" viewBox="0 0 32 32"><path d="M16 2 L29 27 L20 27 L16 18 L12 27 L3 27 Z" fill="#FF5C1A"/><path d="M16 11 L20.5 21 L11.5 21 Z" fill="#0B0B0D"/></svg> Atlas</div>
+    <p>Connect to your Home Assistant. Paste a long-lived access token (Home Assistant → your profile → Security → Long-lived access tokens). It's stored only in this browser.</p>
+    <div>
+      <label>Home Assistant URL</label>
+      <input id="in-url" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div>
+      <label>Long-lived access token</label>
+      <input id="in-token" type="password" autocomplete="off" placeholder="Paste token">
+    </div>
+    <div id="cerr" class="err hide"></div>
+    <button class="go" id="btn-connect"><i class="ti ti-plug"></i> Connect</button>
+    <p style="font-size:11.5px">Tip: ad/privacy browser extensions block the connection (close code 1006). Use a clean browser profile.</p>
+  </div>
+
+  <div id="app" class="hide" style="flex:1;display:flex;flex-direction:column;min-height:0">
+    <div class="hdr">
+      <svg class="mark" width="26" height="26" viewBox="0 0 32 32"><path d="M16 2 L29 27 L20 27 L16 18 L12 27 L3 27 Z" fill="#FF5C1A"/><path d="M16 11 L20.5 21 L11.5 21 Z" fill="#0B0B0D"/></svg>
+      <div><div class="ti-name">Atlas</div><div class="sec" id="hdr-sec">Home</div></div>
+      <div class="right">
+        <div class="conn-dot" id="conn"><span class="d"></span><span id="conn-t">Live</span></div>
+        <button class="iconbtn" id="btn-disc" title="Disconnect"><i class="ti ti-logout"></i></button>
+      </div>
+    </div>
+
+    <div class="scrollarea" id="scroll">
+      <div class="panel on" id="p-home"></div>
+      <div class="panel" id="p-media"></div>
+      <div class="panel" id="p-comfort"></div>
+      <div class="panel" id="p-lights"></div>
+      <div class="panel" id="p-security"></div>
+    </div>
+
+    <div class="nav" id="nav">
+      <button class="on" data-p="home"><i class="ti ti-home"></i><span>Home</span></button>
+      <button data-p="media"><i class="ti ti-music"></i><span>Media</span></button>
+      <button data-p="comfort"><i class="ti ti-temperature"></i><span>Comfort</span></button>
+      <button data-p="lights"><i class="ti ti-bulb"></i><span>Lights</span></button>
+      <button data-p="security"><i class="ti ti-shield"></i><span>Security</span></button>
+    </div>
+  </div>
+
+  <div id="splash" class="hide">
+    <svg class="mark" width="34" height="34" viewBox="0 0 32 32"><path d="M16 2 L29 27 L20 27 L16 18 L12 27 L3 27 Z" fill="#FF5C1A"/><path d="M16 11 L20.5 21 L11.5 21 Z" fill="#0B0B0D"/></svg>
+    <div class="ring"></div>
+    <div class="m" id="splash-msg">Connecting to your home…</div>
+    <button class="esc" id="splash-esc">Enter a token manually</button>
+  </div>
+
+  <div id="toast"></div>
 </div>
-<div class="section">
-<div class="section-header"><div class="section-icon" style="background:rgba(108,99,255,.15);color:var(--accent)">📺</div><div><div class="section-title">Gym TVs</div><div class="section-subtitle">2 devices</div></div></div>
-<div class="card-grid">
-<div class="card hero" id="gym-all" onclick="toggleGymAll()"><div class="card-icon">⚡</div><div class="card-info"><div class="card-label">All TVs On + Netflix</div><div class="card-value">One-tap power on</div></div><div class="toggle" id="gym-all-toggle"></div></div>
-<div class="card" id="gym-tv1" onclick="toggleDevice('gym-tv1')"><div class="card-icon">📺</div><div class="card-label">Gym TV Left</div><div class="card-value">Off</div><div class="card-status" style="background:var(--text-muted)"></div></div>
-<div class="card" id="gym-tv2" onclick="toggleDevice('gym-tv2')"><div class="card-icon">📺</div><div class="card-label">Gym TV Right</div><div class="card-value">Off</div><div class="card-status" style="background:var(--text-muted)"></div></div>
-</div></div>
-<div class="section">
-<div class="section-header"><div class="section-icon" style="background:rgba(34,211,238,.15);color:var(--cyan)">🔊</div><div><div class="section-title">Media</div><div class="section-subtitle">Sonos speakers</div></div></div>
-<div class="card-grid">
-<div class="card" id="sonos-living" onclick="toggleDevice('sonos-living')"><div class="card-icon">🔊</div><div class="card-label">Living Room</div><div class="card-value">Not playing</div><div class="card-status" style="background:var(--text-muted)"></div></div>
-<div class="card" id="sonos-bedroom" onclick="toggleDevice('sonos-bedroom')"><div class="card-icon">🔊</div><div class="card-label">Bedroom</div><div class="card-value">Not playing</div><div class="card-status" style="background:var(--text-muted)"></div></div>
-<div class="card" id="sonos-gym" onclick="toggleDevice('sonos-gym')"><div class="card-icon">🎵</div><div class="card-label">Gym</div><div class="card-value">Not playing</div><div class="card-status" style="background:var(--text-muted)"></div></div>
-<div class="card" id="sonos-patio" onclick="toggleDevice('sonos-patio')"><div class="card-icon">🎵</div><div class="card-label">Patio</div><div class="card-value">Not playing</div><div class="card-status" style="background:var(--text-muted)"></div></div>
-</div></div>
-<div class="section">
-<div class="section-header"><div class="section-icon" style="background:rgba(251,146,60,.15);color:var(--orange)">🌡️</div><div><div class="section-title">Climate</div><div class="section-subtitle">Nest thermostats</div></div></div>
-<div class="card-grid single"><div class="card" style="padding:20px">
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div><div class="card-label" style="font-size:16px">Main Floor</div><div class="card-value">Cooling · 74°F inside</div></div><div style="font-size:24px">❄️</div></div>
-<div class="temp-control"><button class="temp-btn" onclick="adjustTemp('main',-1)">−</button><div class="temp-display" id="main-temp">72<span>°F</span></div><button class="temp-btn" onclick="adjustTemp('main',1)">+</button></div>
-</div></div>
-<div class="card-grid" style="margin-top:10px">
-<div class="card"><div style="display:flex;justify-content:space-between;align-items:start"><div><div class="card-label">Upstairs</div><div class="card-value">Cooling · 73°F</div></div><div style="font-size:18px">❄️</div></div><div class="temp-control" style="margin-top:8px;gap:10px"><button class="temp-btn" style="width:30px;height:30px;font-size:14px" onclick="adjustTemp('up',-1)">−</button><div class="temp-display" id="up-temp" style="font-size:22px;min-width:50px">71<span>°F</span></div><button class="temp-btn" style="width:30px;height:30px;font-size:14px" onclick="adjustTemp('up',1)">+</button></div></div>
-<div class="card"><div style="display:flex;justify-content:space-between;align-items:start"><div><div class="card-label">Gym</div><div class="card-value">Cooling · 70°F</div></div><div style="font-size:18px">❄️</div></div><div class="temp-control" style="margin-top:8px;gap:10px"><button class="temp-btn" style="width:30px;height:30px;font-size:14px" onclick="adjustTemp('gym',-1)">−</button><div class="temp-display" id="gym-temp" style="font-size:22px;min-width:50px">68<span>°F</span></div><button class="temp-btn" style="width:30px;height:30px;font-size:14px" onclick="adjustTemp('gym',1)">+</button></div></div>
-</div></div>
-</div>
-<div class="page" id="page-cameras">
-<div class="section">
-<div class="section-header"><div class="section-icon" style="background:rgba(248,113,113,.15);color:var(--red)">📷</div><div><div class="section-title">Cameras</div><div class="section-subtitle">4 cameras online</div></div></div>
-<div class="camera-grid">
-<div class="camera-card"><div class="camera-feed"><span class="camera-feed-icon">📹</span></div><div class="camera-label">Front Door<span class="camera-live">LIVE</span></div></div>
-<div class="camera-card"><div class="camera-feed"><span class="camera-feed-icon">📹</span></div><div class="camera-label">Backyard<span class="camera-live">LIVE</span></div></div>
-<div class="camera-card"><div class="camera-feed"><span class="camera-feed-icon">📹</span></div><div class="camera-label">Garage<span class="camera-live">LIVE</span></div></div>
-<div class="camera-card"><div class="camera-feed"><span class="camera-feed-icon">📹</span></div><div class="camera-label">Driveway<span class="camera-live">LIVE</span></div></div>
-</div></div>
-<div class="section" style="margin-top:24px">
-<div class="section-header"><div class="section-icon" style="background:rgba(52,211,153,.15);color:var(--green)">✨</div><div><div class="section-title">Scenes</div><div class="section-subtitle">Tap to activate</div></div></div>
-<div class="scene-grid">
-<div class="scene-card" onclick="activateScene(this,'goodnight')"><div class="scene-icon">🌙</div><div class="scene-name">Good Night</div></div>
-<div class="scene-card" onclick="activateScene(this,'movie')"><div class="scene-icon">🎬</div><div class="scene-name">Movie Time</div></div>
-<div class="scene-card" onclick="activateScene(this,'workout')"><div class="scene-icon">💪</div><div class="scene-name">Workout</div></div>
-<div class="scene-card" onclick="activateScene(this,'morning')"><div class="scene-icon">☀️</div><div class="scene-name">Morning</div></div>
-<div class="scene-card" onclick="activateScene(this,'away')"><div class="scene-icon">🔒</div><div class="scene-name">Away</div></div>
-<div class="scene-card" onclick="activateScene(this,'party')"><div class="scene-icon">🎉</div><div class="scene-name">Party</div></div>
-</div></div>
-</div>
-<div class="page" id="page-settings">
-<div class="section">
-<div class="section-header"><div class="section-icon" style="background:rgba(136,136,160,.15);color:var(--text-dim)">⚙️</div><div><div class="section-title">Settings</div><div class="section-subtitle">Atlas Home Control</div></div></div>
-<div class="card-grid single">
-<div class="card" style="padding:20px"><div class="card-label" style="margin-bottom:6px">Home Assistant</div><div class="card-value" style="color:var(--green)">Connected</div><div class="card-value" style="margin-top:8px">Host: homeassistant.local:8123</div></div>
-<div class="card" style="padding:20px"><div class="card-label" style="margin-bottom:6px">Devices</div><div class="card-value">8 devices configured</div><div class="card-value" style="margin-top:4px">2 Gym TVs · 4 Sonos · 3 Nest · 4 Cameras</div></div>
-<div class="card" style="padding:20px"><div class="card-label" style="margin-bottom:6px">App Version</div><div class="card-value">Atlas v1.0.0</div><div class="card-value" style="margin-top:4px">PWA · Samsung S25 Optimized</div></div>
-</div></div>
-</div>
-</div>
-<nav class="bottom-nav">
-<div class="nav-item active" onclick="switchPage('home',this)">🏠<span>Home</span></div>
-<div class="nav-item" onclick="switchPage('cameras',this)">📷<span>Cameras</span></div>
-<div class="nav-item" onclick="switchPage('settings',this)">⚙️<span>Settings</span></div>
-</nav>
-<div class="toast" id="toast"></div>
-</div>
+
+<script src="ha-api.js"></script>
 <script>
-const devices={'gym-tv1':{on:false,label:'Gym TV Left'},'gym-tv2':{on:false,label:'Gym TV Right'},'sonos-living':{on:false,label:'Living Room'},'sonos-bedroom':{on:false,label:'Bedroom'},'sonos-gym':{on:false,label:'Gym'},'sonos-patio':{on:false,label:'Patio'}};
-const temps={main:72,up:71,gym:68};
-function toggleDevice(id){const d=devices[id];if(!d)return;d.on=!d.on;const card=document.getElementById(id);const s=card.querySelector('.card-status');const v=card.querySelector('.card-value');if(d.on){card.classList.add('active');s.style.background='var(--green)';v.textContent=id.startsWith('sonos')?'Playing':'On · Netflix';}else{card.classList.remove('active');s.style.background='var(--text-muted)';v.textContent=id.startsWith('sonos')?'Not playing':'Off';}showToast(d.label+(d.on?' on':' off'));}
-function toggleGymAll(){const anyOn=devices['gym-tv1'].on||devices['gym-tv2'].on;const turnOn=!anyOn;['gym-tv1','gym-tv2'].forEach(id=>{devices[id].on=!turnOn;toggleDevice(id);});document.getElementById('gym-all-toggle').classList.toggle('on',turnOn);document.getElementById('gym-all').classList.toggle('active',turnOn);showToast(turnOn?'All Gym TVs on + Netflix':'All Gym TVs off');}
-function adjustTemp(z,d){temps[z]=Math.min(85,Math.max(60,temps[z]+d));document.getElementById(z+'-temp').innerHTML=temps[z]+'<span>°F<\/span>';showToast('Set to '+temps[z]+'°F');}
-function switchPage(p,el){document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active');}
-function quickAction(s){showToast('Scene: '+s.charAt(0).toUpperCase()+s.slice(1)+' activated');document.querySelectorAll('.quick-action').forEach(b=>b.classList.remove('active'));event.currentTarget.classList.add('active');setTimeout(()=>event.currentTarget.classList.remove('active'),1500);}
-function activateScene(el,n){document.querySelectorAll('.scene-card').forEach(c=>c.classList.remove('active'));el.classList.add('active');showToast('Scene: '+n.charAt(0).toUpperCase()+n.slice(1)+' activated');}
-function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
-</script>
-</body>
-</html>
+(function(){
+  "use strict";
+  var DEFAULT_URL="https://tngrmyqsacrszyzndbnwxcruhmwfyiaz.ui.nabu.casa";
+  var TV_SOURCE="hdmi1";                 // input the Google TV Streamer feeds via the splitter
+  var STREAMER_RE=/stream|google_tv|googletv|chromecast|shield|nvidia|fire_tv|firetv|android_tv/i;
+
+  var ha=null, ENT={}, cur="home", dragging=false, renderTimer=null, camTimer=null, stateTimer=null;
+  var URL_=null, TOKEN_=null, reconnecting=false, reconnectAttempts=0, reconnectTimer=null, everConnected=false;
+
+  var $=function(s){return document.querySelector(s);};
+  var esc=function(s){return (s==null?"":(""+s)).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});};
+  var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms);});};
+  var cap=function(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;};
+
+  function toast(msg,type){
+    var box=$("#toast"); var el=document.createElement("div");
+    el.className="tst "+(type||"");
+    var ic=type==="ok"?"ti-check":type==="bad"?"ti-alert-triangle":"ti-info-circle";
+    el.innerHTML='<i class="ti '+ic+'"></i><span>'+esc(msg)+'</span>';
+    box.appendChild(el);
+    setTimeout(function(){el.style.opacity="0";el.style.transition="opacity .3s";setTimeout(function(){el.remove();},300);},2600);
+  }
+
+  /* ---------- categorize ---------- */
+  function byId(p){return Object.values(ENT).filter(function(s){return s.entity_id.indexOf(p)===0;});}
+  function tvs(){return byId("media_player.").filter(function(s){return (s.attributes||{}).device_class==="tv";});}
+  function speakers(){return byId("media_player.").filter(function(s){return (s.attributes||{}).device_class==="speaker";});}
+  function climates(){return byId("climate.").sort(nameSort);}
+  function lights(){return byId("light.").sort(nameSort);}
+  function cameras(){return byId("camera.").sort(nameSort);}
+  function scenes(){return byId("scene.").sort(nameSort);}
+  function frontDoorCam(){var cm=cameras();return cm.find(function(c){return /front|door|porch|entry/i.test(c.entity_id+" "+fname(c));})||cm[0]||null;}
+  function fname(s){return (s.attributes&&s.attributes.friendly_name)||s.entity_id;}
+  function nameSort(a,b){return fname(a).localeCompare(fname(b));}
+
+  /* ---------- connect & silent auto-reconnect ---------- */
+  function showConnect(err){
+    if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;} reconnecting=false;
+    $("#app").classList.add("hide"); $("#splash").classList.add("hide"); $("#connect").classList.remove("hide");
+    $("#in-url").value=localStorage.getItem("atlas_url")||DEFAULT_URL;
+    var savedTk=localStorage.getItem("atlas_token"); if(savedTk)$("#in-token").value=savedTk; // prefill: re-connect is one tap, no re-paste
+    var ce=$("#cerr");
+    if(err){ce.textContent=err;ce.classList.remove("hide");}else{ce.classList.add("hide");}
+  }
+  function showSplash(msg){
+    $("#connect").classList.add("hide"); $("#app").classList.remove("hide"); $("#splash").classList.remove("hide");
+    var s=$("#splash-msg"); if(s)s.textContent=msg||"Connecting to your home…";
+  }
+  function saveCreds(url,token){ URL_=url; TOKEN_=token; try{localStorage.setItem("atlas_url",url);localStorage.setItem("atlas_token",token);}catch(e){} }
+  function clearCreds(){ TOKEN_=null; try{localStorage.removeItem("atlas_token");}catch(e){} }
+
+  /* one connection attempt; throws on failure (err.authFailed === true for a bad token) */
+  async function connectWithCreds(url,token){
+    ha=new window.AtlasHA(url,token);
+    ha.onClose(handleDrop);
+    await ha.connect();
+    saveCreds(url,token);
+    $("#connect").classList.add("hide"); $("#splash").classList.add("hide"); $("#app").classList.remove("hide");
+    setConn(true); everConnected=true;
+    await loadAll();
+    await ha.onStateChange(function(d){ if(d&&d.new_state){ENT[d.new_state.entity_id]=d.new_state; scheduleRender();} });
+    render(); startCameraLoop(); startStateRefresh();
+  }
+
+  /* the live socket dropped (wifi blip, HA restart, laptop sleep) — reconnect silently */
+  function handleDrop(){ if(ha&&ha.connected) return; /* ignore a stale old socket closing after we already reconnected */ setConn(false,"Reconnecting…"); scheduleReconnect(); }
+
+  function scheduleReconnect(){
+    if(reconnecting) return;
+    if(!TOKEN_){ showConnect(); return; }              // never connected / no saved token → ask once
+    reconnecting=true; reconnectAttempts=0;
+    if(!everConnected) showSplash("Connecting to your home…"); else setConn(false,"Reconnecting…");
+    attemptReconnect();
+  }
+  async function attemptReconnect(){
+    try{
+      await connectWithCreds(URL_,TOKEN_);
+      reconnecting=false; reconnectAttempts=0;
+    }catch(e){
+      if(e&&e.authFailed){ reconnecting=false; clearCreds(); showConnect(e.message); return; } // bad token → re-prompt
+      reconnectAttempts++;
+      if(!everConnected) showSplash("Couldn't reach your home yet — retrying…"); else setConn(false,"Reconnecting…");
+      var delay=Math.min(30000, 1500*Math.pow(1.7, Math.min(reconnectAttempts,7))); // backoff, capped at 30s
+      reconnectTimer=setTimeout(attemptReconnect, delay);
+    }
+  }
+
+  /* manual connect from the login form — failures show on the form, not a silent retry */
+  async function manualConnect(url,token){
+    everConnected=false; reconnecting=false; if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+    showSplash("Connecting…");
+    try{ await connectWithCreds(url,token); }
+    catch(e){ showConnect(e&&e.message?e.message:"Couldn't connect."); }
+  }
+
+  function setConn(ok,label){
+    var c=$("#conn"); if(!c)return;
+    c.classList.toggle("off",!ok); $("#conn-t").textContent=ok?"Live":(label||"Offline");
+  }
+  async function loadAll(){
+    var states=await ha.getStates(); ENT={};
+    states.forEach(function(s){ENT[s.entity_id]=s;});
+  }
+  function startStateRefresh(){
+    clearInterval(stateTimer);
+    stateTimer=setInterval(async function(){ try{await loadAll(); if(cur==="security") render(); }catch(e){ setConn(false,"Reconnecting…"); scheduleReconnect(); } },120000);
+  }
+
+  /* ---------- service helpers ---------- */
+  async function svc(domain,service,data,target){
+    try{ await ha.callService(domain,service,data||{},target||{}); return true; }
+    catch(e){ toast(e.message||"Action failed","bad"); return false; }
+  }
+
+  /* ---------- render ---------- */
+  function scheduleRender(){ if(dragging)return; clearTimeout(renderTimer); renderTimer=setTimeout(render,350); }
+  function render(){
+    if(cur==="home")renderHome();
+    else if(cur==="media")renderMedia();
+    else if(cur==="comfort")renderComfort();
+    else if(cur==="lights")renderLights();
+    else if(cur==="security")renderSecurity();
+  }
+
+  function renderHome(){
+    var h='<div class="sub" style="margin-top:8px">Scenes</div>';
+    h+='<div class="grid2">';
+    // Workout = the Gym one-tap flow, folded in here
+    h+=sceneTile("__gym","ti-barbell","Workout","Gym TVs on");
+    // Any Home Assistant scenes the user has defined
+    scenes().forEach(function(s){
+      var nm=fname(s), ic=/night|sleep|bed/i.test(nm)?"ti-moon":/morning|wake|sun/i.test(nm)?"ti-sun":"ti-bulb";
+      h+=sceneTile(s.entity_id,ic,nm,"Scene");
+    });
+    h+='</div>';
+
+    // Now playing
+    var sp=speakers();
+    var playing=sp.find(function(s){return s.state==="playing";})||sp.find(function(s){return s.state==="paused";});
+    h+='<div class="sub">Now Playing</div>';
+    if(playing){
+      var a=playing.attributes||{};
+      h+='<div class="card"><div style="font-size:11px;color:var(--ac);font-weight:600;letter-spacing:.6px">'+esc(fname(playing))+'</div>'+
+        '<div style="font-size:18px;font-weight:600;margin-top:4px">'+esc(a.media_title||"—")+'</div>'+
+        '<div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(a.media_artist||"")+'</div>'+
+        '<div style="display:flex;justify-content:center;gap:26px;align-items:center;margin-top:14px">'+
+        '<i class="ti ti-player-track-prev" style="font-size:22px;color:var(--mut)" data-act="prev" data-e="'+esc(playing.entity_id)+'"></i>'+
+        '<div style="width:50px;height:50px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-size:22px" data-act="pp" data-e="'+esc(playing.entity_id)+'"><i class="ti '+(playing.state==="playing"?"ti-player-pause":"ti-player-play")+'"></i></div>'+
+        '<i class="ti ti-player-track-next" style="font-size:22px;color:var(--mut)" data-act="next" data-e="'+esc(playing.entity_id)+'"></i></div></div>';
+    }else{
+      h+='<div class="card" style="color:var(--mut);font-size:14px;display:flex;align-items:center;gap:10px"><i class="ti ti-music-off" style="font-size:20px"></i> Nothing playing</div>';
+    }
+
+    // Front door camera
+    h+='<div class="sub">Front Door</div>';
+    var fd=frontDoorCam();
+    if(fd){
+      var fa=fd.attributes||{}; var pic=fa.entity_picture?(localStorage.getItem("atlas_url")+fa.entity_picture):"";
+      h+='<div class="cam" style="aspect-ratio:16/9"><span class="lv"><span class="d"></span>LIVE</span>'+
+         (pic?'<img data-cam="'+esc(fd.entity_id)+'" src="'+esc(pic)+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'')+
+         '<div class="ph" '+(pic?'style="display:none"':'')+'><i class="ti ti-video-off"></i><span>still unavailable</span></div>'+
+         '<span class="cn">'+esc(fname(fd))+'</span></div>';
+    }else{
+      h+='<div class="empty">No camera found.</div>';
+    }
+    $("#p-home").innerHTML=h;
+  }
+  function sceneTile(id,icon,label,sub){
+    return '<button class="dev" data-scene="'+esc(id)+'" style="text-align:left;display:block;width:100%">'+
+      '<div class="scr"><i class="ti '+icon+'"></i></div>'+
+      '<div class="b"><div><div class="n">'+esc(label)+'</div><div class="st">'+esc(sub)+'</div></div></div></button>';
+  }
+
+  function renderMedia(){
+    var sp=speakers();
+    var playing=sp.find(function(s){return s.state==="playing";})||sp.find(function(s){return s.state==="paused";});
+    var h="";
+    if(playing){
+      var a=playing.attributes||{};
+      h+='<div class="card" style="margin-top:8px"><div style="font-size:11px;color:var(--ac);font-weight:600;letter-spacing:.6px">NOW PLAYING · '+esc(fname(playing))+'</div>'+
+        '<div style="font-size:20px;font-weight:600;margin-top:5px">'+esc(a.media_title||"—")+'</div>'+
+        '<div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(a.media_artist||"")+'</div>'+
+        '<div style="display:flex;justify-content:center;gap:26px;align-items:center;margin-top:16px">'+
+        '<i class="ti ti-player-track-prev" style="font-size:22px;color:var(--mut)" data-act="prev" data-e="'+esc(playing.entity_id)+'"></i>'+
+        '<div style="width:52px;height:52px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-size:23px" data-act="pp" data-e="'+esc(playing.entity_id)+'"><i class="ti '+(playing.state==="playing"?"ti-player-pause":"ti-player-play")+'"></i></div>'+
+        '<i class="ti ti-player-track-next" style="font-size:22px;color:var(--mut)" data-act="next" data-e="'+esc(playing.entity_id)+'"></i></div>'+
+        '<button class="allbtn" style="background:linear-gradient(135deg,#FF6A2C,#FF4D0F);color:#fff;border:0;margin-top:16px" id="playall"><i class="ti ti-broadcast"></i> Play everywhere</button></div>';
+    }
+    h+='<div class="sub">Speakers · Dublin Road</div>';
+    if(!sp.length){ h+='<div class="empty">No speakers found.</div>'; }
+    else{
+      h+='<div class="card">';
+      sp.forEach(function(s,i){
+        var a=s.attributes||{}; var lvl=Math.round((a.volume_level||0)*100);
+        var play=s.state==="playing";
+        h+='<div class="row"><div class="ic"><i class="ti ti-device-speaker"></i></div><div class="gw">'+
+          '<div class="nm">'+esc(fname(s))+'</div><div class="st">'+cap(s.state)+(play&&a.media_title?" · "+esc(a.media_title):"")+'</div>'+
+          '<div class="vol"><div class="f" style="width:'+lvl+'%"></div><input type="range" min="0" max="100" value="'+lvl+'" data-vol="'+esc(s.entity_id)+'"></div></div>'+
+          '<div style="width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px" data-act="pp" data-e="'+esc(s.entity_id)+'"><i class="ti '+(play?"ti-player-pause":"ti-player-play")+'"></i></div></div>';
+      });
+      h+='</div>';
+    }
+    $("#p-media").innerHTML=h;
+  }
+
+  function renderComfort(){
+    var cl=climates();
+    var h='<div class="sub" style="margin-top:8px">Thermostats</div>';
+    if(!cl.length){ h+='<div class="empty">No thermostats found.</div>'; }
+    cl.forEach(function(c){
+      var a=c.attributes||{}; var target=a.temperature; var curT=a.current_temperature;
+      var modeColor=c.state==="cool"?"#5BC8FF":c.state==="heat"?"#FF7A3C":"var(--mut)";
+      var modeIcon=c.state==="cool"?"ti-snowflake":c.state==="heat"?"ti-flame":"ti-circle-off";
+      h+='<div class="card climate" style="margin-top:11px">'+
+        '<div class="top"><div class="ic" style="color:'+modeColor+'"><i class="ti '+modeIcon+'"></i></div>'+
+        '<div><div class="name">'+esc(fname(c))+'</div><div class="stt">'+(curT!=null?curT+"° now":"")+' · '+esc(cap(c.state))+'</div></div></div>'+
+        '<div class="therm"><div class="stepbtn" data-temp="'+esc(c.entity_id)+'" data-d="-1">−</div>'+
+        '<div style="text-align:center"><div class="big">'+(target!=null?Math.round(target)+"°":"—")+'</div><div class="cur">set point</div></div>'+
+        '<div class="stepbtn" data-temp="'+esc(c.entity_id)+'" data-d="1">+</div></div>'+
+        '<div class="modes">'+
+        modeChip(c,"cool","ti-snowflake","Cool")+modeChip(c,"heat","ti-flame","Heat")+modeChip(c,"off","ti-power","Off")+
+        '</div></div>';
+    });
+    $("#p-comfort").innerHTML=h;
+  }
+  function renderLights(){
+    var li=lights();
+    var h='<div class="sub" style="margin-top:8px">Lights · '+li.filter(function(l){return l.state==="on";}).length+' on</div>';
+    h+='<button class="allbtn" id="lightsoff"><i class="ti ti-power"></i> All lights off</button>';
+    if(!li.length){ h+='<div class="empty">No lights found.</div>'; }
+    else{
+      h+='<div class="card" style="margin-top:11px">';
+      li.forEach(function(l){
+        var on=l.state==="on"; var a=l.attributes||{};
+        var pct=on&&a.brightness!=null?Math.round(a.brightness/255*100):(on?100:0);
+        h+='<div class="row"><div class="ic" style="color:'+(on?"#E0A12E":"var(--mut)")+'"><i class="ti '+(on?"ti-bulb":"ti-bulb-off")+'"></i></div><div class="gw">'+
+          '<div class="nm">'+esc(fname(l))+'</div>'+
+          (on?'<div class="vol"><div class="f warm" style="width:'+pct+'%"></div><input type="range" min="1" max="100" value="'+pct+'" data-bri="'+esc(l.entity_id)+'"></div>':'<div class="st">Off</div>')+
+          '</div><div class="tg warm '+(on?"on":"")+'" data-light="'+esc(l.entity_id)+'"></div></div>';
+      });
+      h+='</div>';
+    }
+    $("#p-lights").innerHTML=h;
+  }
+  function modeChip(c,mode,icon,label){
+    return '<div class="mode '+(c.state===mode?"on":"")+'" data-mode="'+esc(c.entity_id)+'" data-m="'+mode+'"><i class="ti '+icon+'"></i>'+label+'</div>';
+  }
+
+  function renderSecurity(){
+    var cm=cameras(); var h='<div class="sub" style="margin-top:8px">Cameras · live</div>';
+    if(!cm.length){ h+='<div class="empty">No cameras found in Home Assistant.</div>'; $("#p-security").innerHTML=h; return; }
+    h+='<div class="cams">';
+    cm.forEach(function(c){
+      var a=c.attributes||{}; var pic=a.entity_picture?(localStorage.getItem("atlas_url")+a.entity_picture):"";
+      h+='<div class="cam"><span class="lv"><span class="d"></span>LIVE</span>'+
+         (pic?'<img data-cam="'+esc(c.entity_id)+'" src="'+esc(pic)+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'')+
+         '<div class="ph" '+(pic?'style="display:none"':'')+'><i class="ti ti-video-off"></i><span>still unavailable</span></div>'+
+         '<span class="cn">'+esc(fname(c))+'</span></div>';
+    });
+    h+='</div>';
+    $("#p-security").innerHTML=h;
+  }
+  function startCameraLoop(){
+    clearInterval(camTimer);
+    camTimer=setInterval(function(){
+      if(cur!=="security"&&cur!=="home")return;
+      document.querySelectorAll("img[data-cam]").forEach(function(img){
+        var id=img.getAttribute("data-cam"); var a=(ENT[id]||{}).attributes||{};
+        if(a.entity_picture){ img.style.display="block"; if(img.nextElementSibling)img.nextElementSibling.style.display="none";
+          img.src=localStorage.getItem("atlas_url")+a.entity_picture+(a.entity_picture.indexOf("?")>-1?"&":"?")+"_t="+Date.now(); }
+      });
+    },8000);
+  }
+
+  /* ---------- Gym one-tap flow (Workout scene on Home) ---------- */
+  async function gymFlow(){
+    var ids=tvs().map(function(t){return t.entity_id;});
+    if(!ids.length){ toast("No Gym TVs found"
