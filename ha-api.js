@@ -134,4 +134,29 @@ class AtlasHA {
     return this._send({ type: "call_service", domain, service, service_data: data, target });
   }
 
-  /* Set a zone's target temperatu
+  /* Set a zone's target temperature, e.g. setTemperature("climate.gym", 72) */
+  setTemperature(entityId, temp) {
+    return this.callService("climate", "set_temperature", { temperature: temp }, { entity_id: entityId });
+  }
+
+  /* Change mode: "cool" | "heat" | "heat_cool" | "off" */
+  setHvacMode(entityId, mode) {
+    return this.callService("climate", "set_hvac_mode", { hvac_mode: mode }, { entity_id: entityId });
+  }
+
+  /* Get one entity's current state object (or null) */
+  async getEntity(entityId) {
+    const states = await this.getStates();
+    return states.find((s) => s.entity_id === entityId) || null;
+  }
+
+  /* Live updates: cb({entity_id, new_state, old_state}) fires on any change */
+  async onStateChange(cb) {
+    this._stateListeners.push(cb);
+    await this._send({ type: "subscribe_events", event_type: "state_changed" });
+    this.subscribed = true;
+  }
+}
+
+// make it available to the page / the rest of Atlas
+if (typeof window !== "undefined") window.AtlasHA = AtlasHA;
