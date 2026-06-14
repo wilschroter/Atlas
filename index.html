@@ -449,4 +449,95 @@
   /* ---------- Gym one-tap flow (Workout scene on Home) ---------- */
   async function gymFlow(){
     var ids=tvs().map(function(t){return t.entity_id;});
-    if(!ids.length){ toast("No Gym TVs found"
+    if(!ids.length){ toast("No Gym TVs found","bad"); return; }
+    toast("Powering on "+ids.length+" TVs…");
+    await svc("media_player","turn_on",{},{entity_id:ids});
+    await sleep(3000);
+    var srcIds=tvs().filter(function(t){var sl=(t.attributes||{}).source_list||[];return sl.map(String).map(function(x){return x.toLowerCase();}).indexOf(TV_SOURCE)>-1;}).map(function(t){return t.entity_id;});
+    if(srcIds.length){ await svc("media_player","select_source",{source:TV_SOURCE},{entity_id:srcIds}); }
+    // Streamer + Netflix (degrades if the Google TV Streamer isn't connected yet)
+    var streamer=Object.values(ENT).find(function(s){return s.entity_id.indexOf("media_player.")===0&&STREAMER_RE.test(s.entity_id);});
+    if(streamer){
+      await svc("media_player","turn_on",{},{entity_id:streamer.entity_id});
+      try{ await ha.callService("media_player","play_media",{media_content_type:"app",media_content_id:"netflix"},{entity_id:streamer.entity_id});
+           toast("Gym ready — Netflix launching","ok"); }
+      catch(e){ toast("TVs on & set to HDMI. Streamer woke, but couldn't auto-open Netflix.","ok"); }
+    }else{
+      toast("TVs on & switched to HDMI. (Google TV Streamer not connected yet — open Netflix on it.)","ok");
+    }
+  }
+
+  /* ---------- interactions (event delegation) ---------- */
+  document.addEventListener("click",function(e){
+    var t=e.target.closest("[data-scene],[data-light],[data-mode],[data-temp],[data-act],#playall,#lightsoff");
+    if(!t)return;
+    if(t.hasAttribute("data-scene")){
+      var sid=t.getAttribute("data-scene");
+      if(sid==="__gym"){ gymFlow(); }
+      else { svc("scene","turn_on",{},{entity_id:sid}); toast("Scene: "+esc(sid.replace(/^scene\./,"").replace(/_/g," ")),"ok"); }
+      return;
+    }
+    if(t.hasAttribute("data-light")){ var lid=t.getAttribute("data-light"); t.classList.toggle("on"); svc("light","toggle",{},{entity_id:lid}); return; }
+    if(t.id==="lightsoff"){ svc("light","turn_off",{},{entity_id:lights().map(function(l){return l.entity_id;})}); toast("Turning all lights off"); return; }
+    if(t.hasAttribute("data-mode")){ svc("climate","set_hvac_mode",{hvac_mode:t.getAttribute("data-m")},{entity_id:t.getAttribute("data-mode")}); return; }
+    if(t.hasAttribute("data-temp")){
+      var ce=t.getAttribute("data-temp"),d=parseInt(t.getAttribute("data-d"),10);
+      var c=ENT[ce]; if(!c)return; var cur2=(c.attributes||{}).temperature; if(cur2==null)cur2=(c.attributes||{}).current_temperature||70;
+      svc("climate","set_temperature",{temperature:Math.round(cur2)+d},{entity_id:ce}); return;
+    }
+    if(t.hasAttribute("data-act")){
+      var act=t.getAttribute("data-act"),me=t.getAttribute("data-e");
+      if(act==="pp")svc("media_player","media_play_pause",{},{entity_id:me});
+      else if(act==="next")svc("media_player","media_next_track",{},{entity_id:me});
+      else if(act==="prev")svc("media_player","media_previous_track",{},{entity_id:me});
+      return;
+    }
+    if(t.id==="playall"){
+      var sp=speakers(); if(sp.length<2){toast("Need 2+ speakers");return;}
+      var lead=(sp.find(function(s){return s.state==="playing";})||sp[0]).entity_id;
+      var members=sp.map(function(s){return s.entity_id;}).filter(function(x){return x!==lead;});
+      svc("media_player","join",{group_members:members},{entity_id:lead}); toast("Grouping all speakers…");
+      return;
+    }
+  });
+  // sliders
+  document.addEventListener("pointerdown",function(e){ if(e.target.matches("input[type=range]"))dragging=true; });
+  document.addEventListener("pointerup",function(){ setTimeout(function(){dragging=false;},120); });
+  document.addEventListener("input",function(e){
+    var r=e.target; if(r.type!=="range")return;
+    var f=r.previousElementSibling; if(f)f.style.width=r.value+"%";
+  });
+  document.addEventListener("change",function(e){
+    var r=e.target; if(r.type!=="range")return;
+    if(r.hasAttribute("data-vol")) svc("media_player","volume_set",{volume_level:r.value/100},{entity_id:r.getAttribute("data-vol")});
+    if(r.hasAttribute("data-bri")) svc("light","turn_on",{brightness_pct:parseInt(r.value,10)},{entity_id:r.getAttribute("data-bri")});
+  });
+
+  /* ---------- nav ---------- */
+  $("#nav").addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b)return;
+    cur=b.getAttribute("data-p");
+    $("#nav").querySelectorAll("button").forEach(function(x){x.classList.toggle("on",x===b);});
+    document.querySelectorAll(".panel").forEach(function(p){p.classList.toggle("on",p.id==="p-"+cur);});
+    $("#hdr-sec").textContent={home:"Home",media:"Media",comfort:"Comfort",lights:"Lights",security:"Security"}[cur];
+    $("#scroll").scrollTop=0; render();
+  });
+  $("#btn-connect").addEventListener("click",function(){
+    var u=$("#in-url").value.trim(),tk=$("#in-token").value.trim();
+    if(!u||!tk){ var ce=$("#cerr");ce.textContent="Enter both the URL and a token.";ce.classList.remove("hide");return; }
+    $("#btn-connect").innerHTML='<i class="ti ti-loader-2 spin"></i> Connecting…';
+    manualConnect(u,tk).finally(function(){ $("#btn-connect").innerHTML='<i class="ti ti-plug"></i> Connect'; });
+  });
+  $("#btn-disc").addEventListener("click",function(){ clearCreds(); location.reload(); });
+  $("#splash-esc").addEventListener("click",function(){ showConnect(); });
+
+  /* ---------- boot ---------- */
+  if(!window.AtlasHA){ showConnect("ha-api.js didn't load. Open this file from the Atlas folder so it can find ha-api.js."); return; }
+  URL_=localStorage.getItem("atlas_url")||DEFAULT_URL;
+  TOKEN_=localStorage.getItem("atlas_token");
+  if(TOKEN_){ showSplash("Connecting to your home…"); scheduleReconnect(); } // connect once, auto-reconnect forever after
+  else { showConnect(); }
+})();
+</script>
+</body>
+</html>
