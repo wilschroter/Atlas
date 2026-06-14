@@ -533,6 +533,17 @@
 
   /* ---------- boot ---------- */
   if(!window.AtlasHA){ showConnect("ha-api.js didn't load. Open this file from the Atlas folder so it can find ha-api.js."); return; }
+  // One-time setup link support: open with #token=...&url=... to save credentials to THIS
+  // device's localStorage. The hash is never sent to the server and never appears in page
+  // source — it only lives in the link you personally open, then it's stripped from the URL.
+  if(location.hash){
+    try{
+      var _hp=new URLSearchParams(location.hash.slice(1));
+      var _t=_hp.get("token"), _u=_hp.get("url");
+      if(_t){ localStorage.setItem("atlas_token",_t); if(_u)localStorage.setItem("atlas_url",_u);
+              history.replaceState(null,"",location.pathname+location.search); }
+    }catch(_e){}
+  }
   URL_=localStorage.getItem("atlas_url")||DEFAULT_URL;
   TOKEN_=localStorage.getItem("atlas_token");
   if(TOKEN_){ showSplash("Connecting to your home…"); scheduleReconnect(); } // connect once, auto-reconnect forever after
