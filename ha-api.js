@@ -123,6 +123,21 @@ class AtlasHA {
   /* Every entity in the house (lights, sensors, thermostats, ...) */
   getStates() { return this._send({ type: "get_states" }); }
 
+  /* History for entities over the last N hours (state + attributes; for runtime/usage analysis).
+     Returns an object keyed by entity_id, each an array of points. */
+  getHistory(entityIds, hours) {
+    const end = new Date();
+    const start = new Date(Date.now() - (hours || 24) * 3600 * 1000);
+    return this._send({
+      type: "history/history_during_period",
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      entity_ids: entityIds,
+      minimal_response: false,
+      no_attributes: false
+    });
+  }
+
   /* Just the thermostats (climate.* entities) */
   async getThermostats() {
     const states = await this.getStates();

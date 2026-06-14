@@ -119,6 +119,27 @@
   #splash .ring{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:var(--ac);animation:sp 1s linear infinite;}
   #splash .m{font-size:13.5px;color:var(--mut);max-width:75%;text-align:center;line-height:1.5;}
   #splash .esc{font-size:12px;color:var(--ac);margin-top:2px;text-decoration:underline;}
+  /* stat boxes (Lights / Comfort summaries) */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:8px;}
+  .stat{background:linear-gradient(160deg,#1a1a1f,#141417);border:1px solid var(--line);border-radius:18px;padding:14px 15px;}
+  .stat .v{font-size:25px;font-weight:800;letter-spacing:-.5px;line-height:1;}
+  .stat .v small{font-size:13px;font-weight:600;color:var(--mut);letter-spacing:0;}
+  .stat .k{font-size:11.5px;color:var(--mut);margin-top:7px;display:flex;align-items:center;gap:6px;}
+  .stat .k i{font-size:14px;}
+  .stat.accent .v{color:var(--ac);}
+  .stat.warm .v{color:#E0A12E;}
+  /* room groups (Lights) */
+  .room{background:linear-gradient(160deg,#1a1a1f,#141417);border:1px solid var(--line);border-radius:18px;margin-top:11px;overflow:hidden;}
+  .room .rh{display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer;}
+  .room .ri{width:38px;height:38px;border-radius:11px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--mut);flex:0 0 auto;}
+  .room.lit .ri{color:#E0A12E;}
+  .room .rn{flex:1;min-width:0;}
+  .room .rn .t{font-size:15px;font-weight:600;}
+  .room .rn .s{font-size:11.5px;color:var(--mut);margin-top:1px;}
+  .room .chev{color:var(--mut);font-size:17px;transition:transform .2s;margin-left:2px;}
+  .room.open .chev{transform:rotate(180deg);}
+  .room .rbody{display:none;padding:2px 14px 8px;border-top:1px solid var(--line);}
+  .room.open .rbody{display:block;}
 </style>
 </head>
 <body>
@@ -187,6 +208,8 @@
 
   var ha=null, ENT={}, cur="home", dragging=false, renderTimer=null, camTimer=null, stateTimer=null;
   var URL_=null, TOKEN_=null, reconnecting=false, reconnectAttempts=0, reconnectTimer=null, everConnected=false;
+  var expandedRooms={};                              // which Lights rooms are expanded
+  var hvacUsage={zone:null, mins:0, ts:0, loading:false}; // cached 24h "hardest zone" result
 
   var $=function(s){return document.querySelector(s);};
   var esc=function(s){return (s==null?"":(""+s)).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});};
@@ -213,6 +236,44 @@
   function frontDoorCam(){var cm=cameras();return cm.find(function(c){return /front|door|porch|entry/i.test(c.entity_id+" "+fname(c));})||cm[0]||null;}
   function fname(s){return (s.attributes&&s.attributes.friendly_name)||s.entity_id;}
   function nameSort(a,b){return fname(a).localeCompare(fname(b));}
+
+  /* ---------- lights: group by room (parsed from names — HA has no areas set) ---------- */
+  var ROOMS=[
+    ["Master Wing","ti-bed",/^master/i],
+    ["Catwalk","ti-stairs",/catwalk/i],
+    ["Summer's Room","ti-bed",/summer/i],
+    ["Wil's Room","ti-bed",/wil'?s|will'?s/i],
+    ["Guest Room","ti-bed",/guest/i],
+    ["Laundry","ti-wash-machine",/laundry/i],
+    ["Kids Wing","ti-bed",/kids wing/i],
+    ["Kitchen","ti-tools-kitchen-2",/kitchen/i],
+    ["Pantry","ti-fridge",/pantry/i],
+    ["Dining Room","ti-glass-full",/dining/i],
+    ["Living Room","ti-sofa",/living room|bar island|^bar /i],
+    ["Foyer & Entry","ti-door",/foyer|coat room|powder|mudroom/i],
+    ["Office","ti-briefcase",/office/i],
+    ["Loft","ti-armchair",/loft/i],
+    ["Gym","ti-barbell",/gym/i],
+    ["Theater","ti-movie",/theater/i],
+    ["Basement","ti-box",/basement/i],
+    ["Workshop","ti-hammer",/workshop/i],
+    ["Garage","ti-car",/garage/i],
+    ["Outdoor","ti-tree",/porch|deck|patio|exterior|outside|soffit|front/i]
+  ];
+  function lightRoom(name){
+    for(var i=0;i<ROOMS.length;i++){ if(ROOMS[i][2].test(name)) return ROOMS[i][0]; }
+    return "Other";
+  }
+  function groupLights(){
+    var li=lights(), groups={}, order=[];
+    ROOMS.forEach(function(r){ groups[r[0]]=[]; });
+    groups["Other"]=[];
+    li.forEach(function(l){ groups[lightRoom(fname(l))].push(l); });
+    ROOMS.forEach(function(r){ if(groups[r[0]].length) order.push([r[0],r[1],groups[r[0]]]); });
+    if(groups["Other"].length) order.push(["Other","ti-bulb",groups["Other"]]);
+    return order;
+  }
+  function roomIcon(name){ for(var i=0;i<ROOMS.length;i++){ if(ROOMS[i][0]===name) return ROOMS[i][1]; } return "ti-bulb"; }
 
   /* ---------- connect & silent auto-reconnect ---------- */
   function showConnect(err){
@@ -386,32 +447,93 @@
 
   function renderComfort(){
     var cl=climates();
-    var h='<div class="sub" style="margin-top:8px">Thermostats</div>';
+    var kw=estKW(cl);
+    var hz = hvacUsage.zone ? zoneName(hvacUsage.zone) : (hvacUsage.loading?"…":"—");
+    var hzSub = hvacUsage.zone ? (fmtDur(hvacUsage.mins)+" run · 24h") : "hardest · 24h";
+    var h='<div class="stats">'+
+      '<div class="stat accent"><div class="v">'+kw.toFixed(1)+'<small> kW</small></div><div class="k"><i class="ti ti-bolt"></i>HVAC now · est.</div></div>'+
+      '<div class="stat"><div class="v" style="font-size:17px;line-height:1.15">'+esc(hz)+'</div><div class="k"><i class="ti ti-flame"></i>'+esc(hzSub)+'</div></div>'+
+    '</div>';
+    h+='<div class="sub">Thermostats</div>';
     if(!cl.length){ h+='<div class="empty">No thermostats found.</div>'; }
     cl.forEach(function(c){
-      var a=c.attributes||{}; var target=a.temperature; var curT=a.current_temperature;
+      var a=c.attributes||{}; var curT=a.current_temperature;
       var modeColor=c.state==="cool"?"#5BC8FF":c.state==="heat"?"#FF7A3C":"var(--mut)";
       var modeIcon=c.state==="cool"?"ti-snowflake":c.state==="heat"?"ti-flame":"ti-circle-off";
+      var bigVal;
+      if(c.state==="heat_cool"&&a.target_temp_low!=null&&a.target_temp_high!=null){ bigVal=Math.round(a.target_temp_low)+"–"+Math.round(a.target_temp_high)+"°"; }
+      else { bigVal=(a.temperature!=null?Math.round(a.temperature)+"°":"—"); }
+      var actTxt = (a.hvac_action&&a.hvac_action!=="idle"&&a.hvac_action!=="off") ? " · "+cap(a.hvac_action) : "";
       h+='<div class="card climate" style="margin-top:11px">'+
         '<div class="top"><div class="ic" style="color:'+modeColor+'"><i class="ti '+modeIcon+'"></i></div>'+
-        '<div><div class="name">'+esc(fname(c))+'</div><div class="stt">'+(curT!=null?curT+"° now":"")+' · '+esc(cap(c.state))+'</div></div></div>'+
+        '<div><div class="name">'+esc(fname(c))+'</div><div class="stt">'+(curT!=null?curT+"° now":"")+' · '+esc(cap(c.state))+actTxt+'</div></div></div>'+
         '<div class="therm"><div class="stepbtn" data-temp="'+esc(c.entity_id)+'" data-d="-1">−</div>'+
-        '<div style="text-align:center"><div class="big">'+(target!=null?Math.round(target)+"°":"—")+'</div><div class="cur">set point</div></div>'+
+        '<div style="text-align:center"><div class="big">'+bigVal+'</div><div class="cur">set point</div></div>'+
         '<div class="stepbtn" data-temp="'+esc(c.entity_id)+'" data-d="1">+</div></div>'+
         '<div class="modes">'+
         modeChip(c,"cool","ti-snowflake","Cool")+modeChip(c,"heat","ti-flame","Heat")+modeChip(c,"off","ti-power","Off")+
         '</div></div>';
     });
     $("#p-comfort").innerHTML=h;
+    refreshHvacUsage();
+  }
+  /* rough current HVAC draw (no real power sensors): estimate from each zone's action */
+  function estKW(cl){
+    var kw=0;
+    cl.forEach(function(c){ var act=(c.attributes||{}).hvac_action;
+      if(act==="cooling")kw+=3.5; else if(act==="heating")kw+=0.6; else if(act==="fan")kw+=0.3; });
+    return kw;
+  }
+  function zoneName(id){ var c=ENT[id]; return c?fname(c):(id||"").replace("climate.","").replace(/_/g," "); }
+  function fmtDur(mins){ if(mins==null||mins<1)return "0m"; var hh=Math.floor(mins/60),mm=Math.round(mins%60); return (hh?hh+"h ":"")+mm+"m"; }
+  /* sum minutes a zone's hvac_action was heating/cooling across a 24h history series */
+  function activeMinutes(points){
+    if(!points||!points.length)return 0;
+    var active=0,last=null,lastT=null,now=Date.now()/1000;
+    points.forEach(function(p){ var t=p.lu||p.last_updated; var a=p.a||p.attributes||{};
+      if(lastT!=null&&(last==="heating"||last==="cooling")) active+=(t-lastT);
+      if(a&&("hvac_action" in a)) last=a.hvac_action;
+      lastT=t; });
+    if(lastT!=null&&(last==="heating"||last==="cooling")) active+=(now-lastT);
+    return active/60;
+  }
+  /* fetch 24h history once (cached 5 min) and pick the hardest-working zone */
+  function refreshHvacUsage(){
+    if(!ha||hvacUsage.loading) return;
+    if(hvacUsage.zone && (Date.now()-hvacUsage.ts < 300000)) return;
+    var ids=climates().map(function(c){return c.entity_id;});
+    if(!ids.length) return;
+    hvacUsage.loading=true;
+    ha.getHistory(ids,24).then(function(res){
+      var best=null,bestMin=-1;
+      ids.forEach(function(id){ var m=activeMinutes(res[id]||[]); if(m>bestMin){bestMin=m;best=id;} });
+      hvacUsage={zone:best,mins:bestMin,ts:Date.now(),loading:false};
+      if(cur==="comfort") renderComfort();
+    }).catch(function(){ hvacUsage.loading=false; });
   }
   function renderLights(){
     var li=lights();
-    var h='<div class="sub" style="margin-top:8px">Lights · '+li.filter(function(l){return l.state==="on";}).length+' on</div>';
-    h+='<button class="allbtn" id="lightsoff"><i class="ti ti-power"></i> All lights off</button>';
-    if(!li.length){ h+='<div class="empty">No lights found.</div>'; }
-    else{
-      h+='<div class="card" style="margin-top:11px">';
-      li.forEach(function(l){
+    var onCount=li.filter(function(l){return l.state==="on";}).length;
+    var offCount=li.length-onCount;
+    var h='<div class="stats">'+
+      '<div class="stat warm"><div class="v">'+onCount+'</div><div class="k"><i class="ti ti-bulb"></i>Lights On</div></div>'+
+      '<div class="stat"><div class="v">'+offCount+'</div><div class="k"><i class="ti ti-bulb-off"></i>Lights Off</div></div>'+
+    '</div>';
+    if(!li.length){ h+='<div class="empty">No lights found.</div>'; $("#p-lights").innerHTML=h; return; }
+    if(onCount){ h+='<button class="allbtn" id="lightsoff" style="margin-top:11px"><i class="ti ti-power"></i> Turn all '+onCount+' off</button>'; }
+    h+='<div class="sub">Rooms · tap a room to expand</div>';
+    groupLights().forEach(function(g){
+      var room=g[0], icon=g[1], items=g[2];
+      var onN=items.filter(function(l){return l.state==="on";}).length;
+      var anyOn=onN>0, open=!!expandedRooms[room];
+      h+='<div class="room'+(open?" open":"")+(anyOn?" lit":"")+'">'+
+        '<div class="rh" data-exp="'+esc(room)+'">'+
+          '<div class="ri"><i class="ti '+icon+'"></i></div>'+
+          '<div class="rn"><div class="t">'+esc(room)+'</div><div class="s">'+onN+' of '+items.length+' on</div></div>'+
+          '<div class="tg warm '+(anyOn?"on":"")+'" data-room="'+esc(room)+'"></div>'+
+          '<i class="ti ti-chevron-down chev"></i>'+
+        '</div><div class="rbody">';
+      items.forEach(function(l){
         var on=l.state==="on"; var a=l.attributes||{};
         var pct=on&&a.brightness!=null?Math.round(a.brightness/255*100):(on?100:0);
         h+='<div class="row"><div class="ic" style="color:'+(on?"#E0A12E":"var(--mut)")+'"><i class="ti '+(on?"ti-bulb":"ti-bulb-off")+'"></i></div><div class="gw">'+
@@ -419,8 +541,8 @@
           (on?'<div class="vol"><div class="f warm" style="width:'+pct+'%"></div><input type="range" min="1" max="100" value="'+pct+'" data-bri="'+esc(l.entity_id)+'"></div>':'<div class="st">Off</div>')+
           '</div><div class="tg warm '+(on?"on":"")+'" data-light="'+esc(l.entity_id)+'"></div></div>';
       });
-      h+='</div>';
-    }
+      h+='</div></div>';
+    });
     $("#p-lights").innerHTML=h;
   }
   function modeChip(c,mode,icon,label){
@@ -476,7 +598,7 @@
 
   /* ---------- interactions (event delegation) ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-scene],[data-light],[data-mode],[data-temp],[data-act],#playall,#lightsoff");
+    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-mode],[data-temp],[data-act],#playall,#lightsoff");
     if(!t)return;
     if(t.hasAttribute("data-scene")){
       var sid=t.getAttribute("data-scene");
@@ -486,11 +608,30 @@
     }
     if(t.hasAttribute("data-light")){ var lid=t.getAttribute("data-light"); t.classList.toggle("on"); svc("light","toggle",{},{entity_id:lid}); return; }
     if(t.id==="lightsoff"){ svc("light","turn_off",{},{entity_id:lights().map(function(l){return l.entity_id;})}); toast("Turning all lights off"); return; }
+    if(t.hasAttribute("data-room")){
+      var rn=t.getAttribute("data-room");
+      var items=lights().filter(function(l){return lightRoom(fname(l))===rn;});
+      var anyOn=items.some(function(l){return l.state==="on";});
+      items.forEach(function(l){ l.state=anyOn?"off":"on"; });          // optimistic
+      if(cur==="lights")renderLights();
+      svc("light",anyOn?"turn_off":"turn_on",{},{entity_id:items.map(function(l){return l.entity_id;})});
+      return;
+    }
+    if(t.hasAttribute("data-exp")){ var room=t.getAttribute("data-exp"); expandedRooms[room]=!expandedRooms[room]; if(cur==="lights")renderLights(); return; }
     if(t.hasAttribute("data-mode")){ svc("climate","set_hvac_mode",{hvac_mode:t.getAttribute("data-m")},{entity_id:t.getAttribute("data-mode")}); return; }
     if(t.hasAttribute("data-temp")){
       var ce=t.getAttribute("data-temp"),d=parseInt(t.getAttribute("data-d"),10);
-      var c=ENT[ce]; if(!c)return; var cur2=(c.attributes||{}).temperature; if(cur2==null)cur2=(c.attributes||{}).current_temperature||70;
-      svc("climate","set_temperature",{temperature:Math.round(cur2)+d},{entity_id:ce}); return;
+      var c=ENT[ce]; if(!c)return; var ca=c.attributes||{};
+      var clamp=function(x){return Math.max(45,Math.min(92,x));};
+      if(c.state==="heat_cool"&&ca.target_temp_low!=null&&ca.target_temp_high!=null){
+        var lo=clamp(Math.round(ca.target_temp_low)+d), hi=clamp(Math.round(ca.target_temp_high)+d);
+        ca.target_temp_low=lo; ca.target_temp_high=hi; if(cur==="comfort")renderComfort();
+        svc("climate","set_temperature",{target_temp_low:lo,target_temp_high:hi},{entity_id:ce}); return;
+      }
+      var base=ca.temperature; if(base==null)base=ca.current_temperature||70;
+      var next=clamp(Math.round(base)+d);
+      ca.temperature=next; if(cur==="comfort")renderComfort();        // optimistic instant feedback
+      svc("climate","set_temperature",{temperature:next},{entity_id:ce}); return;
     }
     if(t.hasAttribute("data-act")){
       var act=t.getAttribute("data-act"),me=t.getAttribute("data-e");
