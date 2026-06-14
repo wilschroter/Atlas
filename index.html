@@ -128,6 +128,9 @@
   .stat .k i{font-size:14px;}
   .stat.accent .v{color:var(--ac);}
   .stat.warm .v{color:#E0A12E;}
+  .stat.toggleable{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;}
+  .stat.toggleable:active{transform:scale(.99);}
+  .stat.toggleable .sgrow{min-width:0;}
   /* room groups (Lights) */
   .room{background:linear-gradient(160deg,#1a1a1f,#141417);border:1px solid var(--line);border-radius:18px;margin-top:11px;overflow:hidden;}
   .room .rh{display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer;}
@@ -515,12 +518,12 @@
     var li=lights();
     var onCount=li.filter(function(l){return l.state==="on";}).length;
     var offCount=li.length-onCount;
+    var allOn=li.length>0&&onCount===li.length, allOff=onCount===0;
     var h='<div class="stats">'+
-      '<div class="stat warm"><div class="v">'+onCount+'</div><div class="k"><i class="ti ti-bulb"></i>Lights On</div></div>'+
-      '<div class="stat"><div class="v">'+offCount+'</div><div class="k"><i class="ti ti-bulb-off"></i>Lights Off</div></div>'+
+      '<div class="stat warm toggleable" data-allon><div class="sgrow"><div class="v">'+onCount+'</div><div class="k"><i class="ti ti-bulb"></i>Lights On · tap = all on</div></div><div class="tg warm '+(allOn?"on":"")+'"></div></div>'+
+      '<div class="stat toggleable" data-alloff><div class="sgrow"><div class="v">'+offCount+'</div><div class="k"><i class="ti ti-bulb-off"></i>Lights Off · tap = all off</div></div><div class="tg '+(allOff?"on":"")+'"></div></div>'+
     '</div>';
     if(!li.length){ h+='<div class="empty">No lights found.</div>'; $("#p-lights").innerHTML=h; return; }
-    if(onCount){ h+='<button class="allbtn" id="lightsoff" style="margin-top:11px"><i class="ti ti-power"></i> Turn all '+onCount+' off</button>'; }
     h+='<div class="sub">Rooms · tap a room to expand</div>';
     groupLights().forEach(function(g){
       var room=g[0], icon=g[1], items=g[2];
@@ -598,8 +601,10 @@
 
   /* ---------- interactions (event delegation) ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-mode],[data-temp],[data-act],#playall,#lightsoff");
+    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],#playall,#lightsoff");
     if(!t)return;
+    if(t.hasAttribute("data-allon")){ var aon=lights().map(function(l){return l.entity_id;}); if(!aon.length)return; lights().forEach(function(l){l.state="on";}); if(cur==="lights")renderLights(); svc("light","turn_on",{},{entity_id:aon}); toast("All lights on","ok"); return; }
+    if(t.hasAttribute("data-alloff")){ var aoff=lights().map(function(l){return l.entity_id;}); if(!aoff.length)return; lights().forEach(function(l){l.state="off";}); if(cur==="lights")renderLights(); svc("light","turn_off",{},{entity_id:aoff}); toast("All lights off"); return; }
     if(t.hasAttribute("data-scene")){
       var sid=t.getAttribute("data-scene");
       if(sid==="__gym"){ gymFlow(); }
