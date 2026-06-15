@@ -149,6 +149,23 @@ class AtlasHA {
     return this._send({ type: "call_service", domain, service, service_data: data, target });
   }
 
+  /* Run an action and get its response payload back (for services that return data,
+     e.g. SpotifyPlus get_playlist_favorites). Resolves to the service_response object. */
+  callServiceResponse(domain, service, data = {}, target = {}) {
+    return this._send({ type: "call_service", domain, service, service_data: data, target, return_response: true })
+      .then(function (r) { return (r && r.response) ? r.response : r; });
+  }
+
+  /* Browse a media_player's library. contentType/contentId omitted = the root menu.
+     Returns the browse node: { title, children: [{ title, media_content_type,
+     media_content_id, thumbnail, can_play, can_expand }, ...] }. */
+  browseMedia(entityId, contentType, contentId) {
+    var msg = { type: "media_player/browse_media", entity_id: entityId };
+    if (contentType != null) msg.media_content_type = contentType;
+    if (contentId != null) msg.media_content_id = contentId;
+    return this._send(msg);
+  }
+
   /* Set a zone's target temperature, e.g. setTemperature("climate.gym", 72) */
   setTemperature(entityId, temp) {
     return this.callService("climate", "set_temperature", { temperature: temp }, { entity_id: entityId });

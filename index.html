@@ -222,6 +222,7 @@
   var URL_=null, TOKEN_=null, reconnecting=false, reconnectAttempts=0, reconnectTimer=null, everConnected=false;
   var expandedRooms={};                              // which Lights rooms are expanded
   var hvacUsage={zone:null, mins:0, ts:0, loading:false}; // cached 24h "hardest zone" result
+  var SPX="", spState={node:null, stack:[], loading:false, tried:false, err:""}; // SpotifyPlus launcher state
 
   var $=function(s){return document.querySelector(s);};
   var esc=function(s){return (s==null?"":(""+s)).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});};
@@ -461,11 +462,59 @@
     });
     h+='</div>';
     var spx=Object.values(ENT).find(function(s){return s.entity_id.indexOf("media_player.")===0&&/spotifyplus/.test(s.entity_id);});
-    h+='<div class="sub">Spotify</div><div class="card" style="display:flex;gap:13px;align-items:flex-start"><div class="ic" style="color:#1DB954;flex:0 0 auto"><i class="ti ti-brand-spotify"></i></div><div style="flex:1">'+
-      (spx?'<div class="nm">SpotifyPlus connected</div><div class="st" style="white-space:normal;margin-top:4px;line-height:1.5">Browse, search, and one-tap playlists are coming online next.</div>'
-          :'<div class="nm">Browse &amp; search — not connected</div><div class="st" style="white-space:normal;margin-top:4px;line-height:1.5">Install <b>SpotifyPlus</b> in Home Assistant (HACS) to browse playlists, artist radio &amp; search. Until then, start music from the Spotify app and control it above.</div>')+
-      '</div></div>';
+    if(spx){
+      SPX=spx.entity_id;
+      var crumb=spState.stack.length?'<span data-spback style="color:var(--ac);font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-chevron-left" style="vertical-align:-2px"></i> Back</span>'
+                                    :'<span style="color:var(--mut);font-size:12px;font-weight:600">'+esc((spState.node&&spState.node.title)||"Browse")+'</span>';
+      h+='<div class="sub" style="display:flex;align-items:center;justify-content:space-between"><span style="display:flex;align-items:center;gap:7px"><i class="ti ti-brand-spotify" style="color:#1DB954"></i> Spotify</span>'+crumb+'</div>';
+      h+='<div class="card" id="sp-list">'+spListHtml()+'</div>';
+      if(!spState.tried&&!spState.loading){ spState.tried=true; spLoad(null,null,"Browse",false); }
+    }else{
+      h+='<div class="sub">Spotify</div><div class="card" style="display:flex;gap:13px;align-items:flex-start"><div class="ic" style="color:#1DB954;flex:0 0 auto"><i class="ti ti-brand-spotify"></i></div><div style="flex:1">'+
+        '<div class="nm">Browse &amp; search — not connected</div><div class="st" style="white-space:normal;margin-top:4px;line-height:1.5">Install <b>SpotifyPlus</b> in Home Assistant (HACS) to browse playlists &amp; one-tap play. Until then, start music from the Spotify app and control it above.</div>'+
+        '</div></div>';
+    }
     $("#p-media").innerHTML=h;
+  }
+  /* ---------- Spotify launcher (SpotifyPlus browse + play to the Sonos group) ---------- */
+  function spThumb(u){ if(!u)return ""; if(/^https?:/i.test(u))return u; return (localStorage.getItem("atlas_url")||"")+u; }
+  function spListHtml(){
+    if(spState.loading) return '<div class="st" style="padding:8px 2px">Loading your Spotify…</div>';
+    if(spState.err) return '<div class="st" style="padding:8px 2px;white-space:normal;line-height:1.5">'+esc(spState.err)+' <span data-spretry style="color:var(--ac);font-weight:600;cursor:pointer">Retry</span></div>';
+    var n=spState.node; if(!n||!n.children||!n.children.length) return '<div class="st" style="padding:8px 2px">Nothing here.</div>';
+    return n.children.map(function(it,i){
+      var th=spThumb(it.thumbnail), canP=it.can_play, canE=it.can_expand;
+      var sub=it.media_content_type?cap(String(it.media_content_type).replace(/_/g," ")):"";
+      return '<div class="row" data-spidx="'+i+'">'+
+        (th?'<img src="'+esc(th)+'" style="width:42px;height:42px;border-radius:8px;flex:0 0 auto;object-fit:cover" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="ic" style="flex:0 0 auto;display:none"><i class="ti ti-playlist"></i></div>'
+            :'<div class="ic" style="flex:0 0 auto"><i class="ti ti-playlist"></i></div>')+
+        '<div class="gw"><div class="nm">'+esc(it.title||"Untitled")+'</div>'+(sub?'<div class="st">'+esc(sub)+'</div>':'')+'</div>'+
+        (canP?'<i class="ti ti-player-play" data-spplayidx="'+i+'" style="font-size:23px;color:#1DB954;flex:0 0 auto"></i>'
+             :(canE?'<i class="ti ti-chevron-right" style="color:var(--mut);flex:0 0 auto"></i>':''))+
+        '</div>';
+    }).join("");
+  }
+  function spLoad(ctype,cid,title,push){
+    if(!ha||!SPX)return;
+    spState.loading=true; spState.err=""; if(cur==="media")renderMedia();
+    ha.browseMedia(SPX,ctype,cid).then(function(node){
+      if(push) spState.stack.push({type:ctype,id:cid,title:title});
+      spState.node=node; spState.loading=false; if(cur==="media")renderMedia();
+    }).catch(function(e){ spState.loading=false; spState.err="Couldn't reach Spotify."; if(cur==="media")renderMedia(); });
+  }
+  function spBack(){
+    spState.stack.pop();
+    var top=spState.stack[spState.stack.length-1];
+    spState.loading=true; if(cur==="media")renderMedia();
+    var p=top?ha.browseMedia(SPX,top.type,top.id):ha.browseMedia(SPX,null,null);
+    p.then(function(node){ spState.node=node; spState.loading=false; if(cur==="media")renderMedia(); })
+     .catch(function(){ spState.loading=false; spState.err="Couldn't reach Spotify."; if(cur==="media")renderMedia(); });
+  }
+  function spPlay(it){
+    var g=sonosGroup(), coord=g.coord;
+    if(!coord){ toast("No Sonos speaker to play on","bad"); return; }
+    svc("media_player","play_media",{media_content_id:it.media_content_id,media_content_type:it.media_content_type},{entity_id:coord.entity_id});
+    toast("Playing “"+(it.title||"")+"” to "+(g.members.length>1?g.members.length+" rooms":fname(coord)),"ok");
   }
 
   function renderComfort(){
@@ -621,8 +670,12 @@
 
   /* ---------- interactions (event delegation) ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],[data-sgrp],#playall,#lightsoff");
+    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],[data-sgrp],[data-spidx],[data-spplayidx],[data-spback],[data-spretry],#playall,#lightsoff");
     if(!t)return;
+    if(t.hasAttribute("data-spback")){ spBack(); return; }
+    if(t.hasAttribute("data-spretry")){ spState.tried=false; spState.err=""; if(cur==="media")renderMedia(); return; }
+    if(t.hasAttribute("data-spplayidx")){ var pit=((spState.node&&spState.node.children)||[])[+t.getAttribute("data-spplayidx")]; if(pit)spPlay(pit); return; }
+    if(t.hasAttribute("data-spidx")){ var sit=((spState.node&&spState.node.children)||[])[+t.getAttribute("data-spidx")]; if(!sit)return; if(sit.can_play)spPlay(sit); else if(sit.can_expand)spLoad(sit.media_content_type,sit.media_content_id,sit.title,true); return; }
     if(t.hasAttribute("data-allon")){ var aon=lights().map(function(l){return l.entity_id;}); if(!aon.length)return; lights().forEach(function(l){l.state="on";}); if(cur==="lights")renderLights(); svc("light","turn_on",{},{entity_id:aon}); toast("All lights on","ok"); return; }
     if(t.hasAttribute("data-alloff")){ var aoff=lights().map(function(l){return l.entity_id;}); if(!aoff.length)return; lights().forEach(function(l){l.state="off";}); if(cur==="lights")renderLights(); svc("light","turn_off",{},{entity_id:aoff}); toast("All lights off"); return; }
     if(t.hasAttribute("data-scene")){
