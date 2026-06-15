@@ -143,6 +143,15 @@
   .room.open .chev{transform:rotate(180deg);}
   .room .rbody{display:none;padding:2px 14px 8px;border-top:1px solid var(--line);}
   .room.open .rbody{display:block;}
+  .npart{width:64px;height:64px;border-radius:13px;object-fit:cover;flex:0 0 auto;background:#13241b;}
+  .npart.ph{display:flex;align-items:center;justify-content:center;color:#1DB954;font-size:26px;}
+  .np-t{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .np-a{font-size:13px;color:var(--mut);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .seekrow{display:flex;align-items:center;gap:11px;margin-top:16px;}
+  .tnum{font-size:11px;color:var(--mut);min-width:32px;}
+  .ppbtn{width:54px;height:54px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-size:24px;flex:0 0 auto;}
+  .gvrow{display:flex;align-items:center;gap:11px;}
+  .gvrow i{font-size:18px;color:var(--mut);flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -416,35 +425,46 @@
       '<div class="b"><div><div class="n">'+esc(label)+'</div><div class="st">'+esc(sub)+'</div></div></div></button>';
   }
 
+  function fmtT(s){s=Math.max(0,Math.round(s));var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x;}
+  function livePos(a){var p=a.media_position||0;if(a.media_position_updated_at){var t=Date.parse(a.media_position_updated_at);if(t)p+=Math.max(0,(Date.now()-t)/1000);}return Math.min(p,a.media_duration||p);}
+  function sonosGroup(){
+    var sp=speakers().slice().sort(nameSort);
+    if(!sp.length)return {coord:null,members:[],sp:sp};
+    var lead=sp.find(function(s){return s.state==="playing";})||sp.find(function(s){return s.state==="paused";})||sp[0];
+    var gm=(lead.attributes.group_members&&lead.attributes.group_members.length)?lead.attributes.group_members.slice():[lead.entity_id];
+    var coord=ENT[gm[0]]||lead;
+    return {coord:coord,members:gm,sp:sp};
+  }
   function renderMedia(){
-    var sp=speakers();
-    var playing=sp.find(function(s){return s.state==="playing";})||sp.find(function(s){return s.state==="paused";});
-    var h="";
-    if(playing){
-      var a=playing.attributes||{};
-      h+='<div class="card" style="margin-top:8px"><div style="font-size:11px;color:var(--ac);font-weight:600;letter-spacing:.6px">NOW PLAYING · '+esc(fname(playing))+'</div>'+
-        '<div style="font-size:20px;font-weight:600;margin-top:5px">'+esc(a.media_title||"—")+'</div>'+
-        '<div style="font-size:13px;color:var(--mut);margin-top:2px">'+esc(a.media_artist||"")+'</div>'+
-        '<div style="display:flex;justify-content:center;gap:26px;align-items:center;margin-top:16px">'+
-        '<i class="ti ti-player-track-prev" style="font-size:22px;color:var(--mut)" data-act="prev" data-e="'+esc(playing.entity_id)+'"></i>'+
-        '<div style="width:52px;height:52px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-size:23px" data-act="pp" data-e="'+esc(playing.entity_id)+'"><i class="ti '+(playing.state==="playing"?"ti-player-pause":"ti-player-play")+'"></i></div>'+
-        '<i class="ti ti-player-track-next" style="font-size:22px;color:var(--mut)" data-act="next" data-e="'+esc(playing.entity_id)+'"></i></div>'+
-        '<button class="allbtn" style="background:linear-gradient(135deg,#FF6A2C,#FF4D0F);color:#fff;border:0;margin-top:16px" id="playall"><i class="ti ti-broadcast"></i> Play everywhere</button></div>';
+    var g=sonosGroup(),sp=g.sp;
+    if(!sp.length){ $("#p-media").innerHTML='<div class="empty">No Sonos speakers found.</div>'; return; }
+    var coord=g.coord,a=(coord&&coord.attributes)||{};
+    var hasTrack=!!a.media_title, playing=coord&&coord.state==="playing";
+    var pic=a.entity_picture?(localStorage.getItem("atlas_url")+a.entity_picture):"";
+    var dur=a.media_duration||0,pos=hasTrack?livePos(a):0,pct=dur?Math.min(100,pos/dur*100):0;
+    var memVols=g.members.map(function(id){return ((ENT[id]||{}).attributes||{}).volume_level||0;});
+    var gvol=memVols.length?Math.round(memVols.reduce(function(x,y){return x+y;},0)/memVols.length*100):0;
+    var h='<div class="card" style="margin-top:8px"><div style="display:flex;align-items:center;gap:13px">'+
+      (pic?'<img class="npart" src="'+esc(pic)+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div class="npart ph" style="display:none"><i class="ti ti-music"></i></div>':'<div class="npart ph"><i class="ti ti-music"></i></div>')+
+      '<div style="flex:1;min-width:0"><div class="np-t">'+esc(hasTrack?a.media_title:"Nothing playing")+'</div><div class="np-a">'+esc(hasTrack?(a.media_artist||""):"Start music from Spotify, then control it here")+'</div></div></div>';
+    if(hasTrack){
+      h+='<div class="seekrow"><span class="tnum" id="mcur">'+fmtT(pos)+'</span><div class="vol" style="flex:1;margin-top:0"><div class="f" id="mseekf" style="width:'+pct+'%"></div><input type="range" min="0" max="'+Math.round(dur)+'" value="'+Math.round(pos)+'" data-sseek="'+esc(coord.entity_id)+'"></div><span class="tnum" style="text-align:right">'+fmtT(dur)+'</span></div>';
+      h+='<div style="display:flex;justify-content:center;gap:30px;align-items:center;margin-top:14px"><i class="ti ti-player-track-prev" style="font-size:23px;color:var(--mut)" data-act="prev" data-e="'+esc(coord.entity_id)+'"></i><div class="ppbtn" data-act="pp" data-e="'+esc(coord.entity_id)+'"><i class="ti '+(playing?"ti-player-pause":"ti-player-play")+'"></i></div><i class="ti ti-player-track-next" style="font-size:23px;color:var(--mut)" data-act="next" data-e="'+esc(coord.entity_id)+'"></i></div>';
     }
-    h+='<div class="sub">Speakers · Dublin Road</div>';
-    if(!sp.length){ h+='<div class="empty">No speakers found.</div>'; }
-    else{
-      h+='<div class="card">';
-      sp.forEach(function(s,i){
-        var a=s.attributes||{}; var lvl=Math.round((a.volume_level||0)*100);
-        var play=s.state==="playing";
-        h+='<div class="row"><div class="ic"><i class="ti ti-device-speaker"></i></div><div class="gw">'+
-          '<div class="nm">'+esc(fname(s))+'</div><div class="st">'+cap(s.state)+(play&&a.media_title?" · "+esc(a.media_title):"")+'</div>'+
-          '<div class="vol"><div class="f" style="width:'+lvl+'%"></div><input type="range" min="0" max="100" value="'+lvl+'" data-vol="'+esc(s.entity_id)+'"></div></div>'+
-          '<div style="width:40px;height:40px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px" data-act="pp" data-e="'+esc(s.entity_id)+'"><i class="ti '+(play?"ti-player-pause":"ti-player-play")+'"></i></div></div>';
-      });
-      h+='</div>';
-    }
+    h+='<div class="gvrow" style="margin-top:16px"><i class="ti ti-volume"></i><div class="vol" style="flex:1"><div class="f" style="width:'+gvol+'%"></div><input type="range" min="0" max="100" value="'+gvol+'" data-sgvol></div></div></div>';
+    h+='<div class="sub">Rooms · '+g.members.length+' grouped</div><div class="card">';
+    sp.forEach(function(s){
+      var sa=s.attributes||{},inG=g.members.indexOf(s.entity_id)>-1,lvl=Math.round((sa.volume_level||0)*100);
+      h+='<div class="row"><div class="ic" style="'+(inG?"color:var(--ac);background:#26201b":"")+'"><i class="ti ti-device-speaker"></i></div><div class="gw"><div class="nm">'+esc(fname(s))+'</div>'+
+        (inG?'<div class="vol"><div class="f" style="width:'+lvl+'%"></div><input type="range" min="0" max="100" value="'+lvl+'" data-vol="'+esc(s.entity_id)+'"></div>':'<div class="st">Tap to add to the group</div>')+
+        '</div><div class="tg '+(inG?"on":"")+'" data-sgrp="'+esc(s.entity_id)+'"></div></div>';
+    });
+    h+='</div>';
+    var spx=Object.values(ENT).find(function(s){return s.entity_id.indexOf("media_player.")===0&&/spotifyplus/.test(s.entity_id);});
+    h+='<div class="sub">Spotify</div><div class="card" style="display:flex;gap:13px;align-items:flex-start"><div class="ic" style="color:#1DB954;flex:0 0 auto"><i class="ti ti-brand-spotify"></i></div><div style="flex:1">'+
+      (spx?'<div class="nm">SpotifyPlus connected</div><div class="st" style="white-space:normal;margin-top:4px;line-height:1.5">Browse, search, and one-tap playlists are coming online next.</div>'
+          :'<div class="nm">Browse &amp; search — not connected</div><div class="st" style="white-space:normal;margin-top:4px;line-height:1.5">Install <b>SpotifyPlus</b> in Home Assistant (HACS) to browse playlists, artist radio &amp; search. Until then, start music from the Spotify app and control it above.</div>')+
+      '</div></div>';
     $("#p-media").innerHTML=h;
   }
 
@@ -601,7 +621,7 @@
 
   /* ---------- interactions (event delegation) ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],#playall,#lightsoff");
+    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],[data-sgrp],#playall,#lightsoff");
     if(!t)return;
     if(t.hasAttribute("data-allon")){ var aon=lights().map(function(l){return l.entity_id;}); if(!aon.length)return; lights().forEach(function(l){l.state="on";}); if(cur==="lights")renderLights(); svc("light","turn_on",{},{entity_id:aon}); toast("All lights on","ok"); return; }
     if(t.hasAttribute("data-alloff")){ var aoff=lights().map(function(l){return l.entity_id;}); if(!aoff.length)return; lights().forEach(function(l){l.state="off";}); if(cur==="lights")renderLights(); svc("light","turn_off",{},{entity_id:aoff}); toast("All lights off"); return; }
@@ -638,6 +658,12 @@
       ca.temperature=next; if(cur==="comfort")renderComfort();        // optimistic instant feedback
       svc("climate","set_temperature",{temperature:next},{entity_id:ce}); return;
     }
+    if(t.hasAttribute("data-sgrp")){
+      var sid=t.getAttribute("data-sgrp"), gg=sonosGroup(), inG=gg.members.indexOf(sid)>-1;
+      if(inG){ if(gg.members.length<=1)return; svc("media_player","unjoin",{},{entity_id:sid}); toast("Removed from group"); }
+      else { var coordId=(gg.coord&&gg.coord.entity_id)||sid; svc("media_player","join",{group_members:[sid]},{entity_id:coordId}); toast("Added to group"); }
+      return;
+    }
     if(t.hasAttribute("data-act")){
       var act=t.getAttribute("data-act"),me=t.getAttribute("data-e");
       if(act==="pp")svc("media_player","media_play_pause",{},{entity_id:me});
@@ -658,13 +684,17 @@
   document.addEventListener("pointerup",function(){ setTimeout(function(){dragging=false;},120); });
   document.addEventListener("input",function(e){
     var r=e.target; if(r.type!=="range")return;
+    if(r.hasAttribute("data-sseek")){ var sd=parseInt(r.max,10)||1; var sf=$("#mseekf"); if(sf)sf.style.width=(r.value/sd*100)+"%"; var sc=$("#mcur"); if(sc)sc.textContent=fmtT(parseInt(r.value,10)); return; }
     var f=r.previousElementSibling; if(f)f.style.width=r.value+"%";
   });
   document.addEventListener("change",function(e){
     var r=e.target; if(r.type!=="range")return;
+    if(r.hasAttribute("data-sseek")){ svc("media_player","media_seek",{seek_position:parseInt(r.value,10)},{entity_id:r.getAttribute("data-sseek")}); return; }
+    if(r.hasAttribute("data-sgvol")){ var gg=sonosGroup(),vv=parseInt(r.value,10)/100; gg.members.forEach(function(id){svc("media_player","volume_set",{volume_level:vv},{entity_id:id});}); return; }
     if(r.hasAttribute("data-vol")) svc("media_player","volume_set",{volume_level:r.value/100},{entity_id:r.getAttribute("data-vol")});
     if(r.hasAttribute("data-bri")) svc("light","turn_on",{brightness_pct:parseInt(r.value,10)},{entity_id:r.getAttribute("data-bri")});
   });
+  setInterval(function(){ if(cur!=="media"||dragging)return; var g=sonosGroup(),a=(g.coord&&g.coord.attributes)||{}; if(!g.coord||!a.media_title||g.coord.state!=="playing")return; var dur=a.media_duration||0,pos=livePos(a); var f=$("#mseekf"); if(f&&dur)f.style.width=Math.min(100,pos/dur*100)+"%"; var c=$("#mcur"); if(c)c.textContent=fmtT(pos); },1000);
 
   /* ---------- nav ---------- */
   $("#nav").addEventListener("click",function(e){
