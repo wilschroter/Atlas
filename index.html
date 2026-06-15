@@ -321,7 +321,7 @@
   var expandedRooms={};                              // which Lights rooms are expanded
   var hvacUsage={zone:null, mins:0, ts:0, loading:false}; // cached 24h "hardest zone" result
   var SPX="", spState={sec:{}, loaded:false, loading:false}; // SpotifyPlus library cache
-  var searchOpen=false, searchQ="", expanded=false, spDrill=null;  // Media UI state
+  var searchOpen=false, searchQ="", expanded=false, spDrill=null, _dockSig="";  // Media UI state
 
   var $=function(s){return document.querySelector(s);};
   var esc=function(s){return (s==null?"":(""+s)).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});};
@@ -467,10 +467,20 @@
   }
 
   /* ---------- render ---------- */
-  function scheduleRender(){ if(dragging)return; clearTimeout(renderTimer); renderTimer=setTimeout(render,350); }
+  function scheduleRender(){ if(dragging)return; clearTimeout(renderTimer); renderTimer=setTimeout(liveUpdate,350); }
   function render(){
     if(cur==="home")renderHome();
     else if(cur==="media")renderMedia();
+    else if(cur==="comfort")renderComfort();
+    else if(cur==="lights")renderLights();
+    else if(cur==="security")renderSecurity();
+    renderDock();
+    renderSheet();
+  }
+  /* live state-change update: refresh the docked player + the active non-media tab,
+     but NEVER rebuild the Media launcher grid (would refetch all artwork and lose scroll). */
+  function liveUpdate(){
+    if(cur==="home")renderHome();
     else if(cur==="comfort")renderComfort();
     else if(cur==="lights")renderLights();
     else if(cur==="security")renderSecurity();
@@ -618,10 +628,14 @@
   /* docked player (compact on Media, slim elsewhere; hidden on Home which has its own card) */
   function renderDock(){
     var d=$("#dock"); if(!d)return;
-    if(cur==="home"){ d.innerHTML=""; return; }
-    var g=sonosGroup(); if(!g.coord){ d.innerHTML=""; return; }
+    if(cur==="home"){ d.innerHTML=""; _dockSig="home"; return; }
+    var g=sonosGroup(); if(!g.coord){ d.innerHTML=""; _dockSig="none"; return; }
     var a=g.coord.attributes||{}, hasTrack=!!a.media_title, playing=g.coord.state==="playing";
     var pic=a.entity_picture?spThumb(a.entity_picture):"";
+    var _gv=g.members.map(function(id){return Math.round((((ENT[id]||{}).attributes||{}).volume_level||0)*100);}).join(",");
+    var sig=cur+"|"+searchOpen+"|"+g.coord.entity_id+"|"+(a.media_title||"")+"|"+g.coord.state+"|"+g.members.join(",")+"|"+_gv+"|"+a.shuffle+"|"+a.repeat;
+    if(sig===_dockSig && d.firstChild) return;   // unchanged (e.g. position-only tick) — skip rebuild so artwork/sliders don't flicker
+    _dockSig=sig;
     var title=hasTrack?a.media_title:"Nothing playing", artist=hasTrack?(a.media_artist||""):"Pick something from Spotify";
     var artBg=grad(a.media_title||"x"), eid=esc(g.coord.entity_id);
     if(cur!=="media"||searchOpen){
