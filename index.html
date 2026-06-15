@@ -573,8 +573,8 @@
       '<div class="mpt">'+esc(it.title)+'</div></div>';
   }
   function artHTML(it){
-    return '<div class="macard" data-spcard="'+(it.canPlay?"play":"open")+'" data-spt="'+esc(it.type)+'" data-spi="'+esc(it.id)+'" data-spn="'+esc(it.title)+'">'+
-      '<div class="mav" style="background:'+grad(it.title)+'">'+(it.thumb?'<img src="'+esc(it.thumb)+'" onerror="this.parentNode.textContent=\''+esc(initials(it.title))+'\'">':esc(initials(it.title)))+'</div>'+
+    return '<div class="mpcard" data-spcard="'+(it.canPlay?"play":"open")+'" data-spt="'+esc(it.type)+'" data-spi="'+esc(it.id)+'" data-spn="'+esc(it.title)+'">'+
+      '<div class="mpa" style="background:'+grad(it.title)+';border-radius:50%">'+(it.thumb?'<img src="'+esc(it.thumb)+'" style="border-radius:50%" onerror="this.remove()">':'<i class="ti ti-microphone-2"></i>')+'</div>'+
       '<div class="mpt">'+esc(it.title)+'</div><div class="mps">Radio</div></div>';
   }
   function tileHTML(it){
