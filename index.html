@@ -98,6 +98,7 @@
   .cam .lv{position:absolute;top:8px;left:9px;font-size:9px;font-weight:600;color:#FF8585;display:flex;align-items:center;gap:4px;letter-spacing:.5px;z-index:2;}
   .cam .lv .d{width:5px;height:5px;border-radius:50%;background:#FF5A5A;box-shadow:0 0 6px #FF5A5A;}
   .cam .cn{position:absolute;bottom:7px;left:9px;font-size:11px;color:#fff;z-index:2;text-shadow:0 1px 3px rgba(0,0,0,.8);}
+  .cam .cx{position:absolute;bottom:6px;right:8px;z-index:2;color:#fff;font-size:15px;opacity:.7;text-shadow:0 1px 3px rgba(0,0,0,.8);}
   .empty{text-align:center;color:var(--mut);font-size:13px;padding:40px 10px;}
   .allbtn{display:flex;width:100%;margin-top:13px;background:var(--card2);border:1px solid var(--line);color:var(--tx);border-radius:14px;padding:13px;font-size:14px;font-weight:500;align-items:center;justify-content:center;gap:8px;}
   /* nav */
@@ -521,10 +522,10 @@
     h+='<div class="sub">Front Door</div>';
     var fd=frontDoorCam();
     if(fd){
-      h+='<div class="cam" style="aspect-ratio:16/9"><span class="lv"><span class="d"></span>LIVE</span>'+
+      h+='<div class="cam" data-camopen="'+esc(fd.entity_id)+'" style="aspect-ratio:16/9;cursor:pointer"><span class="lv"><span class="d"></span>LIVE</span>'+
          '<video data-cam="'+esc(fd.entity_id)+'" autoplay muted playsinline></video>'+
          '<div class="ph"><i class="ti ti-video"></i><span>connecting…</span></div>'+
-         '<span class="cn">'+esc(fname(fd))+'</span></div>';
+         '<span class="cn">'+esc(fname(fd))+'</span><span class="cx"><i class="ti ti-arrows-maximize"></i></span></div>';
     }else{
       h+='<div class="empty">No camera found.</div>';
     }
@@ -785,10 +786,10 @@
     if(!cm.length){ h+='<div class="empty">No cameras found in Home Assistant.</div>'; $("#p-security").innerHTML=h; return; }
     h+='<div class="cams">';
     cm.forEach(function(c){
-      h+='<div class="cam"><span class="lv"><span class="d"></span>LIVE</span>'+
+      h+='<div class="cam" data-camopen="'+esc(c.entity_id)+'" style="cursor:pointer"><span class="lv"><span class="d"></span>LIVE</span>'+
          '<video data-cam="'+esc(c.entity_id)+'" autoplay muted playsinline></video>'+
          '<div class="ph"><i class="ti ti-video"></i><span>connecting…</span></div>'+
-         '<span class="cn">'+esc(fname(c))+'</span></div>';
+         '<span class="cn">'+esc(fname(c))+'</span><span class="cx"><i class="ti ti-arrows-maximize"></i></span></div>';
     });
     h+='</div>';
     $("#p-security").innerHTML=h;
@@ -822,6 +823,36 @@
   }
   function startCameraLoop(){ armCams(); }
 
+  /* Tap a camera tile -> fullscreen live view. The WebRTC stream already carries an audio
+     track (muted in the grid); "Listen" just unmutes it so you hear the camera mic. The
+     fullscreen <video> shares the same MediaStream as the grid tile — no new connection. */
+  var _fs=null, _fsId=null;
+  function camOverlay(){
+    if(_fs)return _fs;
+    var o=document.createElement("div"); o.id="camfs";
+    o.style.cssText="position:fixed;inset:0;z-index:1200;background:#000;display:none;flex-direction:column;";
+    o.innerHTML=
+      '<video id="fsvid" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000"></video>'+
+      '<div style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 18px;background:linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,0))">'+
+        '<span id="fsname" style="color:#fff;font-size:16px;font-weight:600;text-shadow:0 1px 4px #000"></span>'+
+        '<div data-camclose style="width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;cursor:pointer"><i class="ti ti-x"></i></div>'+
+      '</div>'+
+      '<div style="position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;padding:max(24px,env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.65))">'+
+        '<button id="fslisten" data-camlisten style="display:flex;align-items:center;gap:8px;border:none;border-radius:24px;padding:12px 22px;background:rgba(255,255,255,.16);color:#fff;font-size:15px;font-weight:600;cursor:pointer;backdrop-filter:blur(8px)"><i class="ti ti-volume-off"></i> Listen</button>'+
+      '</div>';
+    document.body.appendChild(o); _fs=o; return o;
+  }
+  function setListenUI(on){ var b=$("#fslisten"); if(!b)return; b.innerHTML='<i class="ti '+(on?"ti-volume":"ti-volume-off")+'"></i> '+(on?"Listening":"Listen"); b.style.background=on?"rgba(255,92,26,.92)":"rgba(255,255,255,.16)"; }
+  function openCam(id){
+    _fsId=id; var o=camOverlay(); var v=o.querySelector("#fsvid");
+    $("#fsname").textContent=(ENT[id]&&ENT[id].attributes&&ENT[id].attributes.friendly_name)||id;
+    v.muted=true; setListenUI(false);
+    var rec=_cams[id]; if(rec&&rec.stream)v.srcObject=rec.stream;
+    o.style.display="flex"; v.play&&v.play().catch(function(){});
+  }
+  function closeCam(){ if(!_fs)return; var v=_fs.querySelector("#fsvid"); v.muted=true; v.srcObject=null; _fs.style.display="none"; _fsId=null; }
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&_fs&&_fs.style.display!=="none")closeCam(); });
+
   /* ---------- Gym one-tap flow (Workout scene on Home) ---------- */
   async function gymFlow(){
     var ids=tvs().map(function(t){return t.entity_id;});
@@ -845,8 +876,11 @@
 
   /* ---------- interactions (event delegation) ---------- */
   document.addEventListener("click",function(e){
-    var t=e.target.closest("[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],[data-sgrp],[data-spcard],[data-spdrillback],[data-search-open],[data-search-close],[data-expand],[data-collapse],#playall,#lightsoff");
+    var t=e.target.closest("[data-camclose],[data-camlisten],[data-camopen],[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],[data-sgrp],[data-spcard],[data-spdrillback],[data-search-open],[data-search-close],[data-expand],[data-collapse],#playall,#lightsoff");
     if(!t)return;
+    if(t.hasAttribute("data-camclose")){ closeCam(); return; }
+    if(t.hasAttribute("data-camlisten")){ var fv=$("#fsvid"); if(fv){ fv.muted=!fv.muted; setListenUI(!fv.muted); fv.play&&fv.play().catch(function(){}); } return; }
+    if(t.hasAttribute("data-camopen")){ openCam(t.getAttribute("data-camopen")); return; }
     if(t.hasAttribute("data-expand")){ expanded=true; renderSheet(); return; }
     if(t.hasAttribute("data-collapse")){ expanded=false; renderSheet(); return; }
     if(t.hasAttribute("data-search-open")){ searchOpen=true; searchQ=""; renderMedia(); renderDock(); return; }
