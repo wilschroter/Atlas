@@ -879,7 +879,7 @@
     var t=e.target.closest("[data-camclose],[data-camlisten],[data-camopen],[data-scene],[data-light],[data-room],[data-exp],[data-allon],[data-alloff],[data-mode],[data-temp],[data-act],[data-sgrp],[data-spcard],[data-spdrillback],[data-search-open],[data-search-close],[data-expand],[data-collapse],#playall,#lightsoff");
     if(!t)return;
     if(t.hasAttribute("data-camclose")){ closeCam(); return; }
-    if(t.hasAttribute("data-camlisten")){ var fv=$("#fsvid"); if(fv){ fv.muted=!fv.muted; setListenUI(!fv.muted); fv.play&&fv.play().catch(function(){}); } return; }
+    if(t.hasAttribute("data-camlisten")){ var fv=$("#fsvid"); if(fv){ if(!fv.srcObject||!fv.srcObject.getAudioTracks().length){ var nb=$("#fslisten"); if(nb)nb.innerHTML='<i class="ti ti-microphone-off"></i> No mic'; return; } fv.muted=!fv.muted; setListenUI(!fv.muted); fv.play&&fv.play().catch(function(){}); } return; }
     if(t.hasAttribute("data-camopen")){ openCam(t.getAttribute("data-camopen")); return; }
     if(t.hasAttribute("data-expand")){ expanded=true; renderSheet(); return; }
     if(t.hasAttribute("data-collapse")){ expanded=false; renderSheet(); return; }
@@ -1002,7 +1002,4 @@
 </script>
 <script>
   // Register the network-first service worker (enables installable PWA + offline fallback)
-  if("serviceWorker" in navigator){ window.addEventListener("load",function(){ navigator.serviceWorker.register("sw.js").catch(function(){}); }); }
-</script>
-</body>
-</html>
+  if("serviceWork
