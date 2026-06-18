@@ -26,6 +26,7 @@ class AtlasHA {
     this.connected = false;
     this._id = 1;
     this._pending = {};        // message id -> {resolve, reject}
+    this._subs = {};           // message id -> onEvent callback (for streaming subscriptions, e.g. webrtc)
     this._stateListeners = []; // callbacks for live state changes
     this._closeListeners = []; // fired if the socket drops AFTER a successful login
     this.subscribed = false;   // whether we've subscribed to state_changed events
@@ -79,6 +80,8 @@ class AtlasHA {
             break;
           }
           case "event": {
+            // Streaming subscriptions (e.g. webrtc offer) route by message id.
+            if (this._subs[msg.id]) { try { this._subs[msg.id](msg.event); } catch (_) {} break; }
             const data = msg.event && msg.event.data;
             if (data) this._stateListeners.forEach((fn) => fn(data));
             break;
@@ -118,6 +121,80 @@ class AtlasHA {
       this._pending[id] = { resolve, reject };
       this.ws.send(JSON.stringify(Object.assign({ id }, payload)));
     });
+  }
+
+  /* internal: send a command that streams multiple events back under one id.
+     onEvent(eventPayload) fires for each event. Resolves to the subscription id
+     (pass it to unsubscribe() to stop routing events). */
+  _subscribe(payload, onEvent) {
+    return new Promise((resolve, reject) => {
+      if (!this.connected) return reject(new Error("Not connected to Home Assistant yet."));
+      const id = this._id++;
+      this._subs[id] = onEvent;
+      this._pending[id] = {
+        resolve: () => resolve(id),
+        reject: (e) => { delete this._subs[id]; reject(e); }
+      };
+      this.ws.send(JSON.stringify(Object.assign({ id }, payload)));
+    });
+  }
+  unsubscribe(id) { delete this._subs[id]; }
+
+  /* Live WebRTC stream for a camera (Nest / go2rtc cameras whose still snapshots
+     come through black). Attaches the live MediaStream to videoEl. onState(state, stream)
+     fires with "connecting" | "live" | "error". Returns a stop() function.
+
+     Why this and not the still proxy: Nest cameras are stream-only — /api/camera_proxy
+     returns black frames, and they don't support HLS ("play stream service"). WebRTC is
+     the only live path, and it runs over this same WebSocket (no CORS issues). */
+  async startWebrtc(entityId, videoEl, onState) {
+    const self = this;
+    let pc = null, subId = null, sessionId = null, stopped = false;
+    const note = (s, stream) => { if (onState) { try { onState(s, stream); } catch (_) {} } };
+    const stop = () => {
+      stopped = true;
+      if (subId != null) { self.unsubscribe(subId); subId = null; }
+      if (pc) { try { pc.close(); } catch (_) {} pc = null; }
+    };
+    try {
+      const cfg = await this._send({ type: "camera/webrtc/get_client_config", entity_id: entityId });
+      if (stopped) return stop;
+      pc = new RTCPeerConnection((cfg && cfg.configuration) || {});
+      if (cfg && cfg.dataChannel) pc.createDataChannel(cfg.dataChannel);  // Nest requires a data-channel m-line
+      pc.addTransceiver("audio", { direction: "recvonly" });               // audio BEFORE video — Nest rejects the offer otherwise
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.ontrack = (e) => { const s = e.streams[0]; if (videoEl.srcObject !== s) videoEl.srcObject = s; note("live", s); };
+      pc.oniceconnectionstatechange = () => {
+        const st = pc ? pc.iceConnectionState : "";
+        if (st === "failed" || st === "closed") note("error");
+      };
+      pc.onicecandidate = (e) => {
+        if (e.candidate && sessionId != null) {
+          self._send({
+            type: "camera/webrtc/candidate", entity_id: entityId, session_id: sessionId,
+            candidate: { candidate: e.candidate.candidate, sdpMLineIndex: e.candidate.sdpMLineIndex, sdpMid: e.candidate.sdpMid }
+          }).catch(() => {});
+        }
+      };
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      if (stopped) return stop;
+      note("connecting");
+      subId = await this._subscribe(
+        { type: "camera/webrtc/offer", entity_id: entityId, offer: pc.localDescription.sdp },
+        (ev) => {
+          if (stopped || !pc) return;
+          if (ev.type === "session") { sessionId = ev.session_id; }
+          else if (ev.type === "answer") { pc.setRemoteDescription({ type: "answer", sdp: ev.answer }).catch(() => {}); }
+          else if (ev.type === "candidate") { const c = ev.candidate; pc.addIceCandidate(typeof c === "string" ? { candidate: c } : c).catch(() => {}); }
+          else if (ev.code) { note("error"); }   // e.g. webrtc_offer_failed
+        }
+      );
+      if (stopped) { stop(); }
+    } catch (e) {
+      note("error");
+    }
+    return stop;
   }
 
   /* Every entity in the house (lights, sensors, thermostats, ...) */

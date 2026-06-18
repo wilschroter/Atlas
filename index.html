@@ -92,7 +92,7 @@
   .mode.on{background:#26201b;color:#FFB98C;}.mode.on i{color:var(--ac);}
   .cams{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:8px;}
   .cam{border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#0e0f13;position:relative;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
-  .cam img{width:100%;height:100%;object-fit:cover;display:block;}
+  .cam img,.cam video{width:100%;height:100%;object-fit:cover;display:block;background:#0e0f13;}
   .cam .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#3a3a40;font-size:24px;}
   .cam .ph span{font-size:10px;color:var(--mut);}
   .cam .lv{position:absolute;top:8px;left:9px;font-size:9px;font-weight:600;color:#FF8585;display:flex;align-items:center;gap:4px;letter-spacing:.5px;z-index:2;}
@@ -521,10 +521,9 @@
     h+='<div class="sub">Front Door</div>';
     var fd=frontDoorCam();
     if(fd){
-      var fa=fd.attributes||{}; var pic=fa.entity_picture?(localStorage.getItem("atlas_url")+fa.entity_picture):"";
       h+='<div class="cam" style="aspect-ratio:16/9"><span class="lv"><span class="d"></span>LIVE</span>'+
-         (pic?'<img data-cam="'+esc(fd.entity_id)+'" src="'+esc(pic)+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'')+
-         '<div class="ph" '+(pic?'style="display:none"':'')+'><i class="ti ti-video-off"></i><span>still unavailable</span></div>'+
+         '<video data-cam="'+esc(fd.entity_id)+'" autoplay muted playsinline></video>'+
+         '<div class="ph"><i class="ti ti-video"></i><span>connecting…</span></div>'+
          '<span class="cn">'+esc(fname(fd))+'</span></div>';
     }else{
       h+='<div class="empty">No camera found.</div>';
@@ -787,31 +786,38 @@
     h+='<div class="cams">';
     cm.forEach(function(c){
       h+='<div class="cam"><span class="lv"><span class="d"></span>LIVE</span>'+
-         '<img data-cam="'+esc(c.entity_id)+'" style="display:none">'+
-         '<div class="ph"><i class="ti ti-video-off"></i><span>connecting…</span></div>'+
+         '<video data-cam="'+esc(c.entity_id)+'" autoplay muted playsinline></video>'+
+         '<div class="ph"><i class="ti ti-video"></i><span>connecting…</span></div>'+
          '<span class="cn">'+esc(fname(c))+'</span></div>';
     });
     h+='</div>';
     $("#p-security").innerHTML=h;
     armCams();
   }
-  /* Live feed: pull the HA camera_proxy still, and as soon as a frame loads, fetch the
-     next one (~600ms later) — a self-paced loop that streams smoothly without piling up
-     requests. The entity_picture token is re-read each frame so it never goes stale. */
-  function refreshCam(img){
-    if(!img||!document.body.contains(img)){ if(img)clearTimeout(img._t); return; }
-    var panel=img.closest(".panel");
-    if(panel && !panel.classList.contains("on")){ clearTimeout(img._t); img._t=setTimeout(refreshCam.bind(null,img),2000); return; }  // tab not visible — idle until it is
-    var id=img.getAttribute("data-cam"), a=(ENT[id]||{}).attributes||{};
-    if(a.entity_picture){ var u=localStorage.getItem("atlas_url")+a.entity_picture; img.src=u+(u.indexOf("?")>-1?"&":"?")+"_t="+Date.now(); }
-    else { clearTimeout(img._t); img._t=setTimeout(refreshCam.bind(null,img),3000); }
-  }
+  /* Live feeds via WebRTC. These are Nest cameras: the still proxy returns black frames
+     and HLS isn't supported, so WebRTC (over the HA WebSocket) is the only live path —
+     same transport the Nest app and HA dashboard use. We open one peer connection per
+     camera and cache it in _cams; when a tab re-renders and recreates its <video> element,
+     we just re-attach the cached live stream instead of starting a new connection. */
+  var _cams={};   // entity_id -> { stop, stream }
   function armCams(){
-    document.querySelectorAll("img[data-cam]").forEach(function(img){
-      if(img._armed) return; img._armed=true;
-      img.onload=function(){ this.style.display="block"; if(this.nextElementSibling)this.nextElementSibling.style.display="none"; clearTimeout(this._t); this._t=setTimeout(refreshCam.bind(null,this),600); };
-      img.onerror=function(){ this.style.display="none"; if(this.nextElementSibling)this.nextElementSibling.style.display="flex"; clearTimeout(this._t); this._t=setTimeout(refreshCam.bind(null,this),3000); };
-      refreshCam(img);
+    if(!ha||!ha.connected) return;
+    document.querySelectorAll("video[data-cam]").forEach(function(v){
+      var id=v.getAttribute("data-cam");
+      var ph=v.parentNode.querySelector(".ph");
+      var c=_cams[id];
+      if(c){ // connection already exists — reattach the live stream to this (possibly new) element
+        if(c.stream){ if(v.srcObject!==c.stream) v.srcObject=c.stream; if(ph)ph.style.display="none"; }
+        return;
+      }
+      _cams[id]={stop:null, stream:null};
+      ha.startWebrtc(id, v, function(state, stream){
+        var rec=_cams[id]; if(!rec) return;
+        if(stream) rec.stream=stream;
+        if(state==="live"){ if(ph)ph.style.display="none"; }
+        else if(state==="error"){ if(ph){ph.style.display="flex"; ph.innerHTML='<i class="ti ti-video-off"></i><span>unavailable</span>';} }
+        else { if(ph)ph.style.display="flex"; }
+      }).then(function(stop){ if(_cams[id]) _cams[id].stop=stop; else if(stop) stop(); });
     });
   }
   function startCameraLoop(){ armCams(); }
