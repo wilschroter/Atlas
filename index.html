@@ -321,7 +321,7 @@
   var expandedRooms={};                              // which Lights rooms are expanded
   var hvacUsage={zone:null, mins:0, ts:0, loading:false}; // cached 24h "hardest zone" result
   var SPX="", spState={sec:{}, loaded:false, loading:false}; // SpotifyPlus library cache
-  var searchOpen=false, searchQ="", expanded=false, spDrill=null, _dockSig="";  // Media UI state
+  var searchOpen=false, searchQ="", expanded=false, spDrill=null, _dockSig="", _camSig="";  // Media + camera UI state
 
   var $=function(s){return document.querySelector(s);};
   var esc=function(s){return (s==null?"":(""+s)).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];});};
@@ -530,6 +530,7 @@
       h+='<div class="empty">No camera found.</div>';
     }
     $("#p-home").innerHTML=h;
+    armCams();
   }
   function sceneTile(id,icon,label,sub){
     return '<button class="dev" data-scene="'+esc(id)+'" style="text-align:left;display:block;width:100%">'+
@@ -777,30 +778,43 @@
   }
 
   function renderSecurity(){
-    var cm=cameras(); var h='<div class="sub" style="margin-top:8px">Cameras · live</div>';
+    var cm=cameras();
+    var sig=cm.map(function(c){return c.entity_id;}).join(",");
+    if(sig===_camSig && $("#p-security").querySelector(".cams")) return;  // don't rebuild grid on unrelated state ticks (would restart every feed)
+    _camSig=sig;
+    var h='<div class="sub" style="margin-top:8px">Cameras · live</div>';
     if(!cm.length){ h+='<div class="empty">No cameras found in Home Assistant.</div>'; $("#p-security").innerHTML=h; return; }
     h+='<div class="cams">';
     cm.forEach(function(c){
-      var a=c.attributes||{}; var pic=a.entity_picture?(localStorage.getItem("atlas_url")+a.entity_picture):"";
       h+='<div class="cam"><span class="lv"><span class="d"></span>LIVE</span>'+
-         (pic?'<img data-cam="'+esc(c.entity_id)+'" src="'+esc(pic)+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">':'')+
-         '<div class="ph" '+(pic?'style="display:none"':'')+'><i class="ti ti-video-off"></i><span>still unavailable</span></div>'+
+         '<img data-cam="'+esc(c.entity_id)+'" style="display:none">'+
+         '<div class="ph"><i class="ti ti-video-off"></i><span>connecting…</span></div>'+
          '<span class="cn">'+esc(fname(c))+'</span></div>';
     });
     h+='</div>';
     $("#p-security").innerHTML=h;
+    armCams();
   }
-  function startCameraLoop(){
-    clearInterval(camTimer);
-    camTimer=setInterval(function(){
-      if(cur!=="security"&&cur!=="home")return;
-      document.querySelectorAll("img[data-cam]").forEach(function(img){
-        var id=img.getAttribute("data-cam"); var a=(ENT[id]||{}).attributes||{};
-        if(a.entity_picture){ img.style.display="block"; if(img.nextElementSibling)img.nextElementSibling.style.display="none";
-          img.src=localStorage.getItem("atlas_url")+a.entity_picture+(a.entity_picture.indexOf("?")>-1?"&":"?")+"_t="+Date.now(); }
-      });
-    },8000);
+  /* Live feed: pull the HA camera_proxy still, and as soon as a frame loads, fetch the
+     next one (~600ms later) — a self-paced loop that streams smoothly without piling up
+     requests. The entity_picture token is re-read each frame so it never goes stale. */
+  function refreshCam(img){
+    if(!img||!document.body.contains(img)){ if(img)clearTimeout(img._t); return; }
+    var panel=img.closest(".panel");
+    if(panel && !panel.classList.contains("on")){ clearTimeout(img._t); img._t=setTimeout(refreshCam.bind(null,img),2000); return; }  // tab not visible — idle until it is
+    var id=img.getAttribute("data-cam"), a=(ENT[id]||{}).attributes||{};
+    if(a.entity_picture){ var u=localStorage.getItem("atlas_url")+a.entity_picture; img.src=u+(u.indexOf("?")>-1?"&":"?")+"_t="+Date.now(); }
+    else { clearTimeout(img._t); img._t=setTimeout(refreshCam.bind(null,img),3000); }
   }
+  function armCams(){
+    document.querySelectorAll("img[data-cam]").forEach(function(img){
+      if(img._armed) return; img._armed=true;
+      img.onload=function(){ this.style.display="block"; if(this.nextElementSibling)this.nextElementSibling.style.display="none"; clearTimeout(this._t); this._t=setTimeout(refreshCam.bind(null,this),600); };
+      img.onerror=function(){ this.style.display="none"; if(this.nextElementSibling)this.nextElementSibling.style.display="flex"; clearTimeout(this._t); this._t=setTimeout(refreshCam.bind(null,this),3000); };
+      refreshCam(img);
+    });
+  }
+  function startCameraLoop(){ armCams(); }
 
   /* ---------- Gym one-tap flow (Workout scene on Home) ---------- */
   async function gymFlow(){
