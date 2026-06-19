@@ -629,7 +629,7 @@
   /* docked player (compact on Media, slim elsewhere; hidden on Home which has its own card) */
   function renderDock(){
     var d=$("#dock"); if(!d)return;
-    if(cur==="home"){ d.innerHTML=""; _dockSig="home"; return; }
+    if(cur!=="media"){ d.innerHTML=""; _dockSig=cur; return; }   // mini-player lives only on the Media tab
     var g=sonosGroup(); if(!g.coord){ d.innerHTML=""; _dockSig="none"; return; }
     var a=g.coord.attributes||{}, hasTrack=!!a.media_title, playing=g.coord.state==="playing";
     var pic=a.entity_picture?spThumb(a.entity_picture):"";
@@ -1001,5 +1001,4 @@
 })();
 </script>
 <script>
-  // Register the network-first service worker (enables installable PWA + offline fallback)
-  if("serviceWork
+  // Register the network-first service worker (enables installabl
